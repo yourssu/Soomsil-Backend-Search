@@ -7,5 +7,5 @@ import org.springframework.boot.runApplication
 class SearchApplication
 
 fun main(args: Array<String>) {
-	runApplication<SearchApplication>(*args)
+    runApplication<SearchApplication>(*args)
 }
