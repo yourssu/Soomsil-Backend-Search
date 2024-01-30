@@ -11,11 +11,15 @@ import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 
 @Service
 class CrawlingService(
     private val informationRepository: InformationRepository,
+
+    @Value("\${general.user-agent}")
+    private val userAgent: String
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
     private var noticeEndNumber = 638
@@ -68,7 +72,9 @@ class CrawlingService(
             val deferredJob: Deferred<Unit> =
                 coroutineScope.async {
                     log.info("crawling page number : {}", pageNumber)
-                    val document = Jsoup.connect("$baseUrl/$pageNumber").get()
+                    val document = Jsoup.connect("$baseUrl/$pageNumber")
+                        .userAgent(userAgent)
+                        .get()
                     val ul = document.select(ulSelector)
 
                     ul.forEach {
