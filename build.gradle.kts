@@ -28,6 +28,8 @@ dependencies {
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0")
+
     implementation("org.jsoup:jsoup:1.17.1")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
