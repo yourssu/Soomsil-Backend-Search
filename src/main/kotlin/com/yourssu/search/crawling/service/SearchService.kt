@@ -12,8 +12,8 @@ class SearchService(
 ) {
     fun search(query: String, pageable: Pageable): SearchListResponse {
         val informations = informationRepository.findByInfoOrderByScoreDesc(query, pageable).map { SearchResponse.of(it) }.toList()
-
         return SearchListResponse(
+            resultCount = informations.size,
             resultList = informations
         )
     }
