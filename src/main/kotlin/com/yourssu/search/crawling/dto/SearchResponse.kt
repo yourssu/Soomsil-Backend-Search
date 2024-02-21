@@ -8,7 +8,8 @@ data class SearchResponse(
     val link: String,
     val content: String,
     val date: String,
-    val thumbnail: List<String>
+    val thumbnailCount: Int,
+    val thumbnail: List<String>,
 ) {
     companion object {
         fun of(information: Information): SearchResponse {
@@ -18,7 +19,8 @@ data class SearchResponse(
                 link = information.contentUrl,
                 content = information.content,
                 date = information.date,
-                thumbnail = information.imgList
+                thumbnailCount = information.imgList.size,
+                thumbnail = information.imgList,
             )
         }
     }
