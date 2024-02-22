@@ -9,7 +9,7 @@
 
     <!-- Logstash -->
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>${LOGSTASH_HOST}</destination>
+        <destination>localhost:5000</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <timestampPattern>yyyy-MM-dd HH:mm:ss</timestampPattern>
             <timeZone>Asia/Seoul</timeZone>
@@ -22,7 +22,7 @@
     <logger name="com.yourssu.search.crawling.controller.SearchController" level="info">
         <appender-ref ref="LOGSTASH" />
     </logger>
-    <logger name="com.yourssu.search.crawling.service.SearchService" level="info">
+    <logger name="com.yourssu.search.crawling.service.CrawlingService" level="info">
         <appender-ref ref="LOGSTASH" />
     </logger>
 </configuration>
