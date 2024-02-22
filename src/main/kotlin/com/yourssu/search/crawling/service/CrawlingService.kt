@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -75,7 +76,22 @@ class CrawlingService(
                     val document = Jsoup.connect("$baseUrl/$pageNumber")
                         .userAgent(userAgent)
                         .get()
+                    val pageTitle = document.title()
                     val ul = document.select(ulSelector)
+
+                    var faviconElement: Element? = document.head()
+                        .select("link[href~=.*\\.ico]")
+                        .first()
+
+                    val faviconUrl: String? = if (faviconElement != null) {
+                        faviconElement.attr("href")
+                    } else {
+                        faviconElement = document.head()
+                            .select("link[rel=icon]")
+                            .first()
+
+                        faviconElement?.attr("href")
+                    }
 
                     ul.forEach {
                         val date = it.selectFirst(dateSelector)?.text() ?: ""
@@ -100,6 +116,8 @@ class CrawlingService(
                                 date = date,
                                 contentUrl = contentUrl,
                                 imgList = imgList,
+                                favicon = faviconUrl,
+                                source = pageTitle
                             ),
                         )
                     }

@@ -10,6 +10,8 @@ data class SearchResponse(
     val date: String,
     val thumbnailCount: Int,
     val thumbnail: List<String>,
+    val favicon: String?,
+    val source: String
 ) {
     companion object {
         fun of(information: Information): SearchResponse {
@@ -21,6 +23,8 @@ data class SearchResponse(
                 date = information.date,
                 thumbnailCount = information.imgList.size,
                 thumbnail = information.imgList,
+                favicon = information.favicon,
+                source = information.source
             )
         }
     }
