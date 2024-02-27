@@ -27,6 +27,7 @@ class AccessLogNativeQueryRepository (
         val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
         val startTime = now.minusDays(1).format(dtf)
         val endTime = now.format(dtf)
+        val basedTime = now.with(LocalTime.MIN).format(dtf)
 
         val rangeQuery = createRangeQuery("@timestamp", startTime, endTime)
         val matchPhraseQuery = createMatchPhraseQuery("message", "requestURI=/search, query=")
@@ -47,7 +48,7 @@ class AccessLogNativeQueryRepository (
             emptyList()
         }
 
-        return SearchTopQuerysResponse(startTime, querys)
+        return SearchTopQuerysResponse(basedTime, querys)
     }
 
     private fun createRangeQuery(field: String, gte: String, lt: String): Query {
