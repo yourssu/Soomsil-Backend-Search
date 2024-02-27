@@ -26,9 +26,11 @@ class CrawlingService(
     private var funEndNumber = 285
 
     suspend fun crawlingNotice() {
+        /*
+        TODO: 중복 크롤링 방지 용도이나 ssucatch와 fun 시스템 중 한쪽 데이터만 남는 문제 해결
         withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
-        }
+        }*/
 
         crawling(
             "https://scatch.ssu.ac.kr/공지사항/page",
@@ -42,9 +44,9 @@ class CrawlingService(
     }
 
     suspend fun crawlingFun() {
-        withContext(Dispatchers.IO) {
+        /*withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
-        }
+        }*/
 
         crawling(
             "https://fun.ssu.ac.kr/ko/program/all/list/all",
