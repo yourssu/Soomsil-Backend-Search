@@ -22,7 +22,7 @@
     <logger name="com.yourssu.search.crawling.controller.SearchController" level="info">
         <appender-ref ref="LOGSTASH" />
     </logger>
-    <logger name="com.yourssu.search.crawling.service.SearchService" level="info">
+    <logger name="com.yourssu.search.crawling.service.CrawlingService" level="info">
         <appender-ref ref="LOGSTASH" />
     </logger>
 </configuration>
