@@ -12,4 +12,6 @@ class Information(
     val date: String,
     var contentUrl: String,
     var imgList: List<String>,
+    var favicon: String?,
+    var source: String
 )
