@@ -26,6 +26,11 @@ class CrawlingService(
     private var noticeEndNumber = 638
     private var funEndNumber = 285
 
+    companion object {
+        const val SOURCE_NAME_NOTICE = "공지사항"
+        const val SOURCE_NAME_FUN = "펀시스템"
+    }
+
     suspend fun crawlingNotice() {
         withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
@@ -39,6 +44,7 @@ class CrawlingService(
             ".notice_col3 a",
             ".notice_col1 .text-info",
             noticeEndNumber,
+            SOURCE_NAME_NOTICE
         )
     }
 
@@ -55,6 +61,7 @@ class CrawlingService(
             "a",
             "small.thema_point_color.topic ~ small time",
             funEndNumber,
+            SOURCE_NAME_FUN
         )
     }
 
@@ -66,6 +73,7 @@ class CrawlingService(
         urlSelector: String,
         dateSelector: String,
         endNumber: Int,
+        source: String
     ) {
         val jobs = mutableListOf<Deferred<Unit>>()
         val coroutineScope = CoroutineScope(Dispatchers.IO)
@@ -76,7 +84,7 @@ class CrawlingService(
                     val document = Jsoup.connect("$baseUrl/$pageNumber")
                         .userAgent(userAgent)
                         .get()
-                    val pageTitle = document.title()
+
                     val ul = document.select(ulSelector)
 
                     var faviconElement: Element? = document.head()
@@ -117,7 +125,7 @@ class CrawlingService(
                                 contentUrl = contentUrl,
                                 imgList = imgList,
                                 favicon = faviconUrl,
-                                source = pageTitle
+                                source = source
                             ),
                         )
                     }
