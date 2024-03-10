@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -25,10 +26,17 @@ class CrawlingService(
     private var noticeEndNumber = 638
     private var funEndNumber = 285
 
+    companion object {
+        const val SOURCE_NAME_NOTICE = "공지사항"
+        const val SOURCE_NAME_FUN = "펀시스템"
+    }
+
     suspend fun crawlingNotice() {
+        /*
+        TODO: 중복 크롤링 방지 용도이나 ssucatch와 fun 시스템 중 한쪽 데이터만 남는 문제 해결
         withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
-        }
+        }*/
 
         crawling(
             "https://scatch.ssu.ac.kr/공지사항/page",
@@ -38,13 +46,14 @@ class CrawlingService(
             ".notice_col3 a",
             ".notice_col1 .text-info",
             noticeEndNumber,
+            SOURCE_NAME_NOTICE
         )
     }
 
     suspend fun crawlingFun() {
-        withContext(Dispatchers.IO) {
+        /*withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
-        }
+        }*/
 
         crawling(
             "https://fun.ssu.ac.kr/ko/program/all/list/all",
@@ -54,6 +63,7 @@ class CrawlingService(
             "a",
             "small.thema_point_color.topic ~ small time",
             funEndNumber,
+            SOURCE_NAME_FUN
         )
     }
 
@@ -65,6 +75,7 @@ class CrawlingService(
         urlSelector: String,
         dateSelector: String,
         endNumber: Int,
+        source: String
     ) {
         val jobs = mutableListOf<Deferred<Unit>>()
         val coroutineScope = CoroutineScope(Dispatchers.IO)
@@ -75,7 +86,22 @@ class CrawlingService(
                     val document = Jsoup.connect("$baseUrl/$pageNumber")
                         .userAgent(userAgent)
                         .get()
+
                     val ul = document.select(ulSelector)
+
+                    var faviconElement: Element? = document.head()
+                        .select("link[href~=.*\\.ico]")
+                        .first()
+
+                    val faviconUrl: String? = if (faviconElement != null) {
+                        faviconElement.attr("href")
+                    } else {
+                        faviconElement = document.head()
+                            .select("link[rel=icon]")
+                            .first()
+
+                        faviconElement?.attr("href")
+                    }
 
                     ul.forEach {
                         val date = it.selectFirst(dateSelector)?.text() ?: ""
@@ -100,6 +126,8 @@ class CrawlingService(
                                 date = date,
                                 contentUrl = contentUrl,
                                 imgList = imgList,
+                                favicon = faviconUrl,
+                                source = source
                             ),
                         )
                     }
