@@ -12,5 +12,4 @@ class AccessLog(
     val message: String,
     @Field(name = "_@timestamp")
     val timestamp: String? = null
-) {
-}
+)

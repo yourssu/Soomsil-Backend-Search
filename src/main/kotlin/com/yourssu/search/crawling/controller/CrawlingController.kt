@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 class CrawlingController(
-    private val crawlingService: CrawlingService,
+    private val crawlingService: CrawlingService
 ) {
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/crawling/fun")
