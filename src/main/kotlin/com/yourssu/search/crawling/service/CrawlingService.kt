@@ -7,7 +7,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
@@ -128,7 +127,7 @@ class CrawlingService(
                                 imgList = imgList,
                                 favicon = faviconUrl,
                                 source = source
-                            ),
+                            )
                         )
                     }
                 }

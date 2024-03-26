@@ -5,12 +5,11 @@ import io.swagger.v3.oas.models.info.Info
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpHeaders
 
 @Configuration
 class SwaggerConfig(
     @Value("\${springdoc.version}")
-    private val version: String,
+    private val version: String
 ) {
     @Bean
     fun openAPI(): OpenAPI {

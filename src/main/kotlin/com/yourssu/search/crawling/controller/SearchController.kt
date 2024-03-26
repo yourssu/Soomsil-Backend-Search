@@ -20,8 +20,10 @@ class SearchController(
     private val logger: Logger = LoggerFactory.getLogger(SearchController::class.java)
 
     @GetMapping
-    fun search(@RequestParam query: String,
-               @RequestParam page: Int): SearchListResponse {
+    fun search(
+        @RequestParam query: String,
+        @RequestParam page: Int
+    ): SearchListResponse {
         logger.info(append("query", query), "requestURI=/search, query={}", query)
         val pageable = PageRequest.of(page, 10)
         return searchService.search(query, pageable)

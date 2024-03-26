@@ -18,7 +18,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Component
-class AccessLogNativeQueryRepository (
+class AccessLogNativeQueryRepository(
     private val elasticsearchOperations: ElasticsearchOperations
 ) {
     fun findTopQueries(): SearchTopQueriesResponse {
