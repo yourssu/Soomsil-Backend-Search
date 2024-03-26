@@ -7,7 +7,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
 import co.elastic.clients.json.JsonData
 import com.yourssu.search.crawling.domain.AccessLog
 import com.yourssu.search.crawling.dto.QueryCountResponse
-import com.yourssu.search.crawling.dto.SearchTopQuerysResponse
+import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
