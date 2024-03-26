@@ -29,8 +29,8 @@ class SearchService(
         )
     }
 
-    fun searchTopQuerys(): SearchTopQueriesResponse {
-        return accessLogNativeQueryRepository.findTopQuerys()
+    fun searchTopQueries(): SearchTopQueriesResponse {
+        return accessLogNativeQueryRepository.findTopQueries()
     }
 
     fun saveInformation(

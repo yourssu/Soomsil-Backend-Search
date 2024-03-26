@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter
 class AccessLogNativeQueryRepository(
     private val elasticsearchOperations: ElasticsearchOperations
 ) {
-    fun findTopQuerys(): SearchTopQueriesResponse {
+    fun findTopQueries(): SearchTopQueriesResponse {
         // 전날 00:00 - 24:00까지 집계 (UTC 기준)
         val now = LocalDateTime.of(LocalDate.now(), LocalTime.of(15, 0, 0)).minusDays(1)
         val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
@@ -31,10 +31,13 @@ class AccessLogNativeQueryRepository(
 
         val rangeQuery = createRangeQuery("@timestamp", startTime, endTime)
         val matchPhraseQuery = createMatchPhraseQuery("message", "requestURI=/search, query=")
+        val matchQuery = createMatchQuery("query.keyword", "")
         val aggregation = createAggregation("query.keyword", 10)
 
+        val boolQuery = QueryBuilders.bool().must(rangeQuery, matchPhraseQuery).mustNot(matchQuery).build()._toQuery()
+
         val nativeQuery = NativeQuery.builder()
-            .withQuery(QueryBuilders.bool().must(rangeQuery, matchPhraseQuery).build()._toQuery())
+            .withQuery(boolQuery)
             .withAggregation("top_keywords", aggregation)
             .build()
 
@@ -59,6 +62,11 @@ class AccessLogNativeQueryRepository(
 
     private fun createMatchPhraseQuery(field: String, query: String): Query {
         return QueryBuilders.matchPhrase().field(field)
+            .query(query).build()._toQuery()
+    }
+
+    private fun createMatchQuery(field: String, query: String): Query {
+        return QueryBuilders.match().field(field)
             .query(query).build()._toQuery()
     }
 

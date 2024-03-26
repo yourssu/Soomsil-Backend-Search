@@ -29,8 +29,8 @@ class SearchController(
         return searchService.search(query, pageable)
     }
 
-    @GetMapping("/topQuerys")
+    @GetMapping("/topQueries")
     fun getTopKeywords(): SearchTopQueriesResponse {
-        return searchService.searchTopQuerys()
+        return searchService.searchTopQueries()
     }
 }
