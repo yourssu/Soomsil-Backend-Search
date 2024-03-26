@@ -43,7 +43,6 @@ class SearchService(
         favicon: String?,
         source: String
     ) {
-        if (id.length < 10000) throw ElasticConnectionException()
         val information = Information(
             id = id,
             title = title,
