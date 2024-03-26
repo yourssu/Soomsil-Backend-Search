@@ -7,7 +7,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
 import co.elastic.clients.json.JsonData
 import com.yourssu.search.crawling.domain.AccessLog
 import com.yourssu.search.crawling.dto.QueryCountResponse
-import com.yourssu.search.crawling.dto.SearchTopQuerysResponse
+import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter
 class AccessLogNativeQueryRepository(
     private val elasticsearchOperations: ElasticsearchOperations
 ) {
-    fun findTopQuerys(): SearchTopQuerysResponse {
+    fun findTopQuerys(): SearchTopQueriesResponse {
         // 전날 00:00 - 24:00까지 집계 (UTC 기준)
         val now = LocalDateTime.of(LocalDate.now(), LocalTime.of(15, 0, 0)).minusDays(1)
         val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
@@ -48,7 +48,7 @@ class AccessLogNativeQueryRepository(
             emptyList()
         }
 
-        return SearchTopQuerysResponse(basedTime, querys)
+        return SearchTopQueriesResponse(basedTime, querys)
     }
 
     private fun createRangeQuery(field: String, gte: String, lt: String): Query {

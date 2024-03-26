@@ -3,7 +3,7 @@ package com.yourssu.search.crawling.service
 import com.yourssu.search.crawling.domain.Information
 import com.yourssu.search.crawling.dto.SearchListResponse
 import com.yourssu.search.crawling.dto.SearchResponse
-import com.yourssu.search.crawling.dto.SearchTopQuerysResponse
+import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
 import com.yourssu.search.crawling.dto.request.SaveInformationRequest
 import com.yourssu.search.crawling.repository.AccessLogNativeQueryRepository
 import com.yourssu.search.crawling.repository.InformationRepository
@@ -29,7 +29,7 @@ class SearchService(
         )
     }
 
-    fun searchTopQuerys(): SearchTopQuerysResponse {
+    fun searchTopQuerys(): SearchTopQueriesResponse {
         return accessLogNativeQueryRepository.findTopQuerys()
     }
 
