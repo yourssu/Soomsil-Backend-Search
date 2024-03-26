@@ -1,7 +1,7 @@
 package com.yourssu.search.crawling.controller
 
 import com.yourssu.search.crawling.dto.SearchListResponse
-import com.yourssu.search.crawling.dto.SearchTopQuerysResponse
+import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
 import com.yourssu.search.crawling.service.SearchService
 import net.logstash.logback.marker.Markers.append
 import org.slf4j.Logger
@@ -27,8 +27,8 @@ class SearchController(
         return searchService.search(query, pageable)
     }
 
-    @GetMapping("/topQuerys")
-    fun getTopKeywords(): SearchTopQuerysResponse {
-        return searchService.searchTopQuerys()
+    @GetMapping("/topQueries")
+    fun getTopKeywords(): SearchTopQueriesResponse {
+        return searchService.searchTopQueries()
     }
 }

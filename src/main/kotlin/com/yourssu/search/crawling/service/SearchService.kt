@@ -2,7 +2,7 @@ package com.yourssu.search.crawling.service
 
 import com.yourssu.search.crawling.dto.SearchListResponse
 import com.yourssu.search.crawling.dto.SearchResponse
-import com.yourssu.search.crawling.dto.SearchTopQuerysResponse
+import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
 import com.yourssu.search.crawling.repository.AccessLogNativeQueryRepository
 import com.yourssu.search.crawling.repository.InformationRepository
 import org.springframework.data.domain.Pageable
@@ -26,7 +26,7 @@ class SearchService(
         )
     }
 
-    fun searchTopQuerys(): SearchTopQuerysResponse {
-        return accessLogNativeQueryRepository.findTopQuerys()
+    fun searchTopQueries(): SearchTopQueriesResponse {
+        return accessLogNativeQueryRepository.findTopQueries()
     }
 }
