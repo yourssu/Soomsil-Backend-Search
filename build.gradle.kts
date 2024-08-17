@@ -6,6 +6,7 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "11.3.2"
     kotlin("jvm") version "1.9.21"
     kotlin("plugin.spring") version "1.9.21"
+    kotlin("plugin.jpa") version "1.9.24"
 }
 
 group = "com.yourssu"
@@ -28,6 +29,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    runtimeOnly("com.mysql:mysql-connector-j")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0")
 
