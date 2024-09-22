@@ -11,6 +11,7 @@ import com.yourssu.search.crawling.repository.InformationRepository
 import com.yourssu.search.global.exception.ElasticConnectionException
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 
 @Service
 class SearchService(
@@ -39,7 +40,7 @@ class SearchService(
         id: String,
         title: String,
         content: String,
-        date: String,
+        date: LocalDate,
         contentUrl: String,
         imgList: List<String>,
         favicon: String?,
@@ -84,7 +85,7 @@ class SearchService(
         id: String,
         title: String,
         content: String,
-        date: String,
+        date: LocalDate,
         contentUrl: String,
         imgList: List<String>,
         favicon: String?,
