@@ -1,7 +1,6 @@
 package com.yourssu.search.crawling.dto
 
 import com.yourssu.search.crawling.domain.Information
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 data class SearchResponse(
