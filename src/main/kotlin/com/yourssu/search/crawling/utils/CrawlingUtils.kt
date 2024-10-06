@@ -1,4 +1,4 @@
-package com.yourssu.search.crawling.service
+package com.yourssu.search.crawling.utils
 
 import com.yourssu.search.crawling.domain.Information
 import com.yourssu.search.crawling.domain.InformationUrl
@@ -13,96 +13,23 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
-import org.jsoup.select.Elements
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.stereotype.Service
+import org.springframework.stereotype.Component
 import java.time.LocalDate
 import java.util.regex.Pattern
-import kotlin.time.measureTimedValue
 
-@Service
-class CrawlingService(
-    private val strategies: Map<String, CrawlingStrategy>,
+@Component
+class CrawlingUtils(
     private val informationRepository: InformationRepository,
-    /*private val informationUrlRepository: InformationUrlRepository,
+    private val informationUrlRepository: InformationUrlRepository,
 
     @Value("\${general.user-agent}")
-    private val userAgent: String*/
+    private val userAgent: String
 ) {
-    /*private val log = LoggerFactory.getLogger(this::class.java)
-    private var noticeEndNumber = 638
-    private var funEndNumber = 285
+    private val log = LoggerFactory.getLogger(this::class.java)
 
-    companion object {
-        const val SOURCE_NAME_NOTICE = "공지사항"
-        const val SOURCE_NAME_FUN = "펀시스템"
-    }*/
-
-    suspend fun executeCrawling(strategyKey: String) {
-        val strategy = strategies[strategyKey]
-            ?: throw IllegalArgumentException("Invalid crawling strategy: $strategyKey")
-        strategy.crawl()
-    }
-
-    suspend fun deleteData() {
-        withContext(Dispatchers.IO) {
-            informationRepository.deleteAll()
-        }
-    }
-
-    /*suspend fun crawlingNotice() {
-        val urlSelector = ".notice_col3 a"
-        val duration = measureTimedValue {
-            val elements = crawlingList(
-                "https://scatch.ssu.ac.kr/공지사항/page",
-                "ul.notice-lists li:not(.notice_head) ",
-                noticeEndNumber
-            )
-
-            crawlingContents(
-                filteringAlreadySavedData(elements, SourceType.NOTICE, urlSelector),
-                ".notice_col3 a .d-inline-blcok.m-pt-5",
-                "div.bg-white p",
-                urlSelector,
-                ".notice_col1 .text-info",
-                getFavicon("https://scatch.ssu.ac.kr/공지사항"),
-                SOURCE_NAME_NOTICE,
-                SourceType.NOTICE
-            )
-        }
-        log.info("all time use {}", duration.duration.inWholeSeconds)
-    }
-
-    suspend fun crawlingFun() {
-        /*withContext(Dispatchers.IO) {
-            informationRepository.deleteAll()
-        }*/
-        val baseUrl = "https://fun.ssu.ac.kr/ko/program/all/list/all"
-        val urlSelector = "a"
-
-        val duration = measureTimedValue {
-            val elements = crawlingList(
-                baseUrl,
-                "ul.columns-4 li",
-                funEndNumber
-            )
-
-            crawlingContents(
-                filteringAlreadySavedData(elements, SourceType.FUN, urlSelector),
-                ".content .title",
-                "div .description p",
-                urlSelector,
-                "small.thema_point_color.topic ~ small time",
-                getFavicon(baseUrl),
-                SOURCE_NAME_FUN,
-                SourceType.FUN
-            )
-        }
-        log.info("all time use {}", duration.duration.inWholeSeconds)
-    }
-
-    suspend fun getFavicon(baseUrl: String): String? {
+    private suspend fun getFavicon(baseUrl: String): String? {
         val document = Jsoup.connect(baseUrl)
             .userAgent(userAgent)
             .get()
@@ -239,12 +166,4 @@ class CrawlingService(
             null // 정규표현식에 맞지 않으면 null 반환
         }
     }
-
-    private fun stopCrawlingNotice(ul: Elements): Boolean {
-        return ul.isEmpty()
-    }
-
-    private fun stopCrawlingFun(ul: Elements): Boolean {
-        return ul.select("li").attr("class") == "empty"
-    }*/
 }
