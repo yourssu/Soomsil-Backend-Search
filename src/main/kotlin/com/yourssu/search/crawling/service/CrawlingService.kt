@@ -17,6 +17,8 @@ import org.jsoup.select.Elements
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.time.LocalDate
+import java.util.regex.Pattern
 import kotlin.time.measureTimedValue
 
 @Service
@@ -168,7 +170,7 @@ class CrawlingService(
 
         val contentJobs = jobs.map { deferredList ->
             coroutineScope.async {
-                val date = deferredList.selectFirst(dateSelector)?.text() ?: ""
+                val rawDate = deferredList.selectFirst(dateSelector)?.text() ?: ""
                 val title = deferredList.selectFirst(titleSelector)?.text() ?: ""
                 val contentUrl = deferredList.selectFirst(urlSelector)?.attr("abs:href") ?: ""
                 val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
@@ -182,29 +184,53 @@ class CrawlingService(
                         content.append(trimmedText).append("\n")
                     }
                 }
+                val extractedDate = extractDate(rawDate)
 
-                synchronized(newUrls) {
-                    if (newUrls.none { it.contentUrl == contentUrl }) {
-                        newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
+                if (extractedDate != null) {
+                    synchronized(newUrls) {
+                        if (newUrls.none { it.contentUrl == contentUrl }) {
+                            newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
 
-                        informationRepository.save(
-                            Information(
-                                title = title,
-                                content = content.toString().trim(),
-                                date = date,
-                                contentUrl = contentUrl,
-                                imgList = imgList,
-                                favicon = favicon,
-                                source = source
+                            informationRepository.save(
+                                Information(
+                                    title = title,
+                                    content = content.toString().trim(),
+                                    date = extractedDate,
+                                    contentUrl = contentUrl,
+                                    imgList = imgList,
+                                    favicon = favicon,
+                                    source = source
+                                )
                             )
-                        )
+                        }
                     }
+                } else {
+                    log.error("날짜 추출 실패 : $rawDate")
                 }
             }
         }
 
         contentJobs.awaitAll()
         informationUrlRepository.saveAll(newUrls)
+    }
+
+    private fun extractDate(dateStr: String): LocalDate? {
+        val datePattern = Pattern.compile("(\\d{4})\\.(\\d{2})\\.(\\d{2})")
+        val matcher = datePattern.matcher(dateStr)
+
+        return if (matcher.find()) {
+            val year = matcher.group(1).toInt()
+            val month = matcher.group(2).toInt()
+            val day = matcher.group(3).toInt()
+
+            try {
+                LocalDate.of(year, month, day)
+            } catch (e: Exception) {
+                null // 날짜 변환 실패 시 null 반환
+            }
+        } else {
+            null // 정규표현식에 맞지 않으면 null 반환
+        }
     }
 
     private fun stopCrawlingNotice(ul: Elements): Boolean {
