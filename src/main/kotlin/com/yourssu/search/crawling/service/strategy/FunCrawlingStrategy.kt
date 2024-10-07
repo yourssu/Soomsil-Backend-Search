@@ -28,7 +28,7 @@ class FunCrawlingStrategy(
                 "div .description p",
                 urlSelector,
                 "small.thema_point_color.topic ~ small time",
-                "https://fun.ssu.ac.kr/attachment/view/51/favicon.ico", //getFavicon("https://scatch.ssu.ac.kr/공지사항"),
+                "https://fun.ssu.ac.kr/attachment/view/51/favicon.ico",
                 "펀시스템",
                 SourceType.FUN
             )

@@ -29,7 +29,7 @@ class NoticeCrawlingStrategy(
                 "div.bg-white p",
                 urlSelector,
                 ".notice_col1 .text-info",
-                "https://scatch.ssu.ac.kr/wp-content/uploads/sites/5/2019/07/cropped-favicon-32x32.png", //getFavicon("https://scatch.ssu.ac.kr/공지사항"),
+                "https://scatch.ssu.ac.kr/wp-content/uploads/sites/5/2019/07/cropped-favicon-32x32.png",
                 "공지사항",
                 SourceType.NOTICE
             )

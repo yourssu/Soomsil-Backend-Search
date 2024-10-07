@@ -19,32 +19,6 @@ class CrawlingController(
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
-    /*@ResponseStatus(HttpStatus.CREATED)
-    @PostMapping("/crawling/fun")
-    suspend fun crawlingFun(): ResponseEntity<String> {
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                crawlingService.crawlingFun()
-            } catch (e: Exception) {
-                log.error("Crawling failed: ${e.message}")
-            }
-        }
-        return ResponseEntity.ok("Crawling started successfully.")
-    }
-
-    @ResponseStatus(HttpStatus.CREATED)
-    @PostMapping("/crawling/notice")
-    suspend fun crawlingNotice(): ResponseEntity<String> {
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                crawlingService.crawlingNotice()
-            } catch (e: Exception) {
-                log.error("Crawling failed: ${e.message}")
-            }
-        }
-        return ResponseEntity.ok("Crawling started successfully.")
-    }*/
-
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("")
     suspend fun deleteCrawling() = crawlingService.deleteData()

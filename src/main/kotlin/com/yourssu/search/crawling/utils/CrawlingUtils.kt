@@ -29,26 +29,6 @@ class CrawlingUtils(
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
-    private suspend fun getFavicon(baseUrl: String): String? {
-        val document = Jsoup.connect(baseUrl)
-            .userAgent(userAgent)
-            .get()
-
-        var faviconElement: Element? = document.head()
-            .select("link[href~=.*\\.ico]")
-            .first()
-
-        return if (faviconElement != null) {
-            faviconElement.attr("href")
-        } else {
-            faviconElement = document.head()
-                .select("link[rel=icon]")
-                .first()
-
-            faviconElement?.attr("href")
-        }
-    }
-
     suspend fun filteringAlreadySavedData(
         jobs: List<Deferred<List<Element>>>,
         sourceType: SourceType,
