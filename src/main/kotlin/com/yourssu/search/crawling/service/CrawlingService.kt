@@ -1,12 +1,16 @@
 package com.yourssu.search.crawling.service
 
 import com.yourssu.search.crawling.domain.Information
+import com.yourssu.search.crawling.domain.InformationUrl
+import com.yourssu.search.crawling.domain.SourceType
 import com.yourssu.search.crawling.repository.InformationRepository
+import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
@@ -15,10 +19,12 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.util.regex.Pattern
+import kotlin.time.measureTimedValue
 
 @Service
 class CrawlingService(
     private val informationRepository: InformationRepository,
+    private val informationUrlRepository: InformationUrlRepository,
 
     @Value("\${general.user-agent}")
     private val userAgent: String
@@ -32,96 +38,159 @@ class CrawlingService(
         const val SOURCE_NAME_FUN = "펀시스템"
     }
 
-    suspend fun crawlingNotice() {
-        /*
-        TODO: 중복 크롤링 방지 용도이나 ssucatch와 fun 시스템 중 한쪽 데이터만 남는 문제 해결
+    suspend fun deleteData() {
         withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
-        }*/
+        }
+    }
 
-        crawling(
-            "https://scatch.ssu.ac.kr/공지사항/page",
-            "ul.notice-lists li:not(.notice_head) ",
-            ".notice_col3 a .d-inline-blcok.m-pt-5",
-            "div.bg-white p",
-            ".notice_col3 a",
-            ".notice_col1 .text-info",
-            noticeEndNumber,
-            SOURCE_NAME_NOTICE
-        )
+    suspend fun crawlingNotice() {
+        val urlSelector = ".notice_col3 a"
+        val duration = measureTimedValue {
+            val elements = crawlingList(
+                "https://scatch.ssu.ac.kr/공지사항/page",
+                "ul.notice-lists li:not(.notice_head) ",
+                noticeEndNumber
+            )
+
+            crawlingContents(
+                filteringAlreadySavedData(elements, SourceType.NOTICE, urlSelector),
+                ".notice_col3 a .d-inline-blcok.m-pt-5",
+                "div.bg-white p",
+                urlSelector,
+                ".notice_col1 .text-info",
+                getFavicon("https://scatch.ssu.ac.kr/공지사항"),
+                SOURCE_NAME_NOTICE,
+                SourceType.NOTICE
+            )
+        }
+        log.info("all time use {}", duration.duration.inWholeSeconds)
     }
 
     suspend fun crawlingFun() {
         /*withContext(Dispatchers.IO) {
             informationRepository.deleteAll()
         }*/
+        val baseUrl = "https://fun.ssu.ac.kr/ko/program/all/list/all"
+        val urlSelector = "a"
 
-        crawling(
-            "https://fun.ssu.ac.kr/ko/program/all/list/all",
-            "ul.columns-4 li",
-            ".content .title",
-            "div .description p",
-            "a",
-            "small.thema_point_color.topic ~ small time",
-            funEndNumber,
-            SOURCE_NAME_FUN
-        )
+        val duration = measureTimedValue {
+            val elements = crawlingList(
+                baseUrl,
+                "ul.columns-4 li",
+                funEndNumber
+            )
+
+            crawlingContents(
+                filteringAlreadySavedData(elements, SourceType.FUN, urlSelector),
+                ".content .title",
+                "div .description p",
+                urlSelector,
+                "small.thema_point_color.topic ~ small time",
+                getFavicon(baseUrl),
+                SOURCE_NAME_FUN,
+                SourceType.FUN
+            )
+        }
+        log.info("all time use {}", duration.duration.inWholeSeconds)
     }
 
-    suspend fun crawling(
+    suspend fun getFavicon(baseUrl: String): String? {
+        val document = Jsoup.connect(baseUrl)
+            .userAgent(userAgent)
+            .get()
+
+        var faviconElement: Element? = document.head()
+            .select("link[href~=.*\\.ico]")
+            .first()
+
+        return if (faviconElement != null) {
+            faviconElement.attr("href")
+        } else {
+            faviconElement = document.head()
+                .select("link[rel=icon]")
+                .first()
+
+            faviconElement?.attr("href")
+        }
+    }
+
+    suspend fun filteringAlreadySavedData(
+        jobs: List<Deferred<List<Element>>>,
+        sourceType: SourceType,
+        urlSelector: String
+    ): List<Element> {
+        val savedData: List<InformationUrl>
+        withContext(Dispatchers.IO) {
+            savedData = informationUrlRepository.findAllBySourceType(sourceType)
+        }
+        val savedUrls = savedData.map { it.contentUrl }
+
+        val temp = jobs.awaitAll().flatten().filterNot { element ->
+            (element.selectFirst(urlSelector)?.attr("abs:href") ?: "") in savedUrls
+        }
+
+        return temp
+    }
+
+    suspend fun crawlingList(
         baseUrl: String,
         ulSelector: String,
+        endNumber: Int
+    ): List<Deferred<List<Element>>> {
+        val coroutineScope = CoroutineScope(Dispatchers.IO)
+        val jobs = mutableListOf<Deferred<List<Element>>>()
+
+        for (pageNumber in 1..endNumber) {
+            val deferredJob: Deferred<List<Element>> = coroutineScope.async {
+                log.info("crawling page number : {}", pageNumber)
+                val document = Jsoup.connect("$baseUrl/$pageNumber")
+                    .userAgent(userAgent)
+                    .get()
+
+                document.select(ulSelector).toList()
+            }
+            jobs.add(deferredJob)
+        }
+        return jobs
+    }
+
+    suspend fun crawlingContents(
+        jobs: List<Element>,
         titleSelector: String,
         contentSelector: String,
         urlSelector: String,
         dateSelector: String,
-        endNumber: Int,
-        source: String
+        favicon: String?,
+        source: String,
+        sourceType: SourceType
     ) {
-        val jobs = mutableListOf<Deferred<Unit>>()
         val coroutineScope = CoroutineScope(Dispatchers.IO)
-        for (pageNumber in 1..endNumber) {
-            val deferredJob: Deferred<Unit> =
-                coroutineScope.async {
-                    log.info("crawling page number : {}", pageNumber)
-                    val document = Jsoup.connect("$baseUrl/$pageNumber")
-                        .userAgent(userAgent)
-                        .get()
+        val newUrls = mutableListOf<InformationUrl>()
 
-                    val ul = document.select(ulSelector)
+        val contentJobs = jobs.map { deferredList ->
+            coroutineScope.async {
+                val rawDate = deferredList.selectFirst(dateSelector)?.text() ?: ""
+                val title = deferredList.selectFirst(titleSelector)?.text() ?: ""
+                val contentUrl = deferredList.selectFirst(urlSelector)?.attr("abs:href") ?: ""
+                val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
 
-                    var faviconElement: Element? = document.head()
-                        .select("link[href~=.*\\.ico]")
-                        .first()
+                val imgList = paragraphs.select("img").map { img -> img.attr("src") }
 
-                    val faviconUrl: String? = if (faviconElement != null) {
-                        faviconElement.attr("href")
-                    } else {
-                        faviconElement = document.head()
-                            .select("link[rel=icon]")
-                            .first()
-
-                        faviconElement?.attr("href")
+                val content = StringBuilder()
+                for (paragraph in paragraphs) {
+                    val trimmedText = paragraph.text().replace("\\s+".toRegex(), " ").trim()
+                    if (trimmedText.isNotEmpty()) {
+                        content.append(trimmedText).append("\n")
                     }
+                }
+                val extractedDate = extractDate(rawDate)
 
-                    ul.forEach {
-                        val rawDate = it.selectFirst(dateSelector)?.text() ?: ""
-                        val title = it.selectFirst(titleSelector)?.text() ?: ""
-                        val contentUrl = it.selectFirst(urlSelector)?.attr("abs:href") ?: ""
-                        val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
+                if (extractedDate != null) {
+                    synchronized(newUrls) {
+                        if (newUrls.none { it.contentUrl == contentUrl }) {
+                            newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
 
-                        val imgList = paragraphs.select("img").map { img -> img.attr("src") }
-
-                        val content = StringBuilder()
-                        for (paragraph in paragraphs) {
-                            val trimmedText = paragraph.text().replace("\\s+".toRegex(), " ").trim()
-                            if (trimmedText.isNotEmpty()) {
-                                content.append(trimmedText).append("\n")
-                            }
-                        }
-
-                        val extractedDate = extractDate(rawDate)
-                        if (extractedDate != null) {
                             informationRepository.save(
                                 Information(
                                     title = title,
@@ -129,21 +198,20 @@ class CrawlingService(
                                     date = extractedDate,
                                     contentUrl = contentUrl,
                                     imgList = imgList,
-                                    favicon = faviconUrl,
+                                    favicon = favicon,
                                     source = source
                                 )
                             )
-                        } else {
-                            log.error("날짜 추출 실패 : $rawDate")
                         }
                     }
+                } else {
+                    log.error("날짜 추출 실패 : $rawDate")
                 }
-            jobs.add(deferredJob)
+            }
         }
 
-        coroutineScope.async {
-            jobs.awaitAll()
-        }
+        contentJobs.awaitAll()
+        informationUrlRepository.saveAll(newUrls)
     }
 
     private fun extractDate(dateStr: String): LocalDate? {

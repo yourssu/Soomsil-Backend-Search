@@ -11,7 +11,7 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.stereotype.Component
 
 @Component
-class InformationCustomRepository (
+class InformationCustomRepository(
     private val elasticsearchOperations: ElasticsearchOperations
 ) {
     fun search(query: String, pageable: Pageable): Page<Information> {
