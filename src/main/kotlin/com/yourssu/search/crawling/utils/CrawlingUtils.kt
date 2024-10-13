@@ -8,8 +8,13 @@ import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -25,11 +30,14 @@ class CrawlingUtils(
     private val informationUrlRepository: InformationUrlRepository,
 
     @Value("\${general.user-agent}")
-    private val userAgent: String
+    private val userAgent: String,
+    
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val mutex: Mutex = Mutex()
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
-    suspend fun filteringAlreadySavedData(
+    suspend fun filteringToSaveDocuments(
         jobs: List<Deferred<List<Element>>>,
         sourceType: SourceType,
         urlSelector: String
@@ -70,7 +78,7 @@ class CrawlingUtils(
     }
 
     suspend fun crawlingContents(
-        jobs: List<Element>,
+        toSaveDocuments: List<Element>,
         titleSelector: String,
         contentSelector: String,
         urlSelector: String,
@@ -79,14 +87,13 @@ class CrawlingUtils(
         source: String,
         sourceType: SourceType
     ) {
-        val coroutineScope = CoroutineScope(Dispatchers.IO)
         val newUrls = mutableListOf<InformationUrl>()
 
-        val contentJobs = jobs.map { deferredList ->
-            coroutineScope.async {
-                val rawDate = deferredList.selectFirst(dateSelector)?.text() ?: ""
-                val title = deferredList.selectFirst(titleSelector)?.text() ?: ""
-                val contentUrl = deferredList.selectFirst(urlSelector)?.attr("abs:href") ?: ""
+        val contentJobs: List<Job> = toSaveDocuments.map { element ->
+            coroutineScope.launch {
+                val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
+                val title = element.selectFirst(titleSelector)?.text() ?: ""
+                val contentUrl = element.selectFirst(urlSelector)?.attr("abs:href") ?: ""
                 val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
 
                 val imgList = paragraphs.select("img").map { img -> img.attr("src") }
@@ -100,31 +107,33 @@ class CrawlingUtils(
                 }
                 val extractedDate = extractDate(rawDate)
 
-                if (extractedDate != null) {
-                    synchronized(newUrls) {
-                        if (newUrls.none { it.contentUrl == contentUrl }) {
-                            newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
-
-                            informationRepository.save(
-                                Information(
-                                    title = title,
-                                    content = content.toString().trim(),
-                                    date = extractedDate,
-                                    contentUrl = contentUrl,
-                                    imgList = imgList,
-                                    favicon = favicon,
-                                    source = source
-                                )
-                            )
-                        }
-                    }
-                } else {
+                if (extractedDate == null) {
                     log.error("날짜 추출 실패 : $rawDate")
+                    return@launch
+                }
+
+                // FIXME: 트랜잭션 처리 필요
+                mutex.withLock {
+                    if (newUrls.none { it.contentUrl == contentUrl }) {
+                        newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
+
+                        informationRepository.save(
+                            Information(
+                                title = title,
+                                content = content.toString().trim(),
+                                date = extractedDate,
+                                contentUrl = contentUrl,
+                                imgList = imgList,
+                                favicon = favicon,
+                                source = source
+                            )
+                        )
+                    }
                 }
             }
         }
 
-        contentJobs.awaitAll()
+        contentJobs.joinAll()
         informationUrlRepository.saveAll(newUrls)
     }
 
