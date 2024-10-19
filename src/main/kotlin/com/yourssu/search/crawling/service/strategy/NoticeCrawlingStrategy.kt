@@ -3,7 +3,6 @@ package com.yourssu.search.crawling.service.strategy
 import com.yourssu.search.crawling.domain.SourceType
 import com.yourssu.search.crawling.service.CrawlingStrategy
 import com.yourssu.search.crawling.utils.CrawlingUtils
-import kotlinx.coroutines.Deferred
 import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
