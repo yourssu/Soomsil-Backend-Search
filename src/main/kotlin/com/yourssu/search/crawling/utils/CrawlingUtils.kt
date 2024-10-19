@@ -60,8 +60,7 @@ class CrawlingUtils(
         ulSelector: String,
         endNumber: Int
     ): List<Deferred<List<Element>>> {
-        val coroutineScope = CoroutineScope(Dispatchers.IO)
-        val jobs = mutableListOf<Deferred<List<Element>>>()
+        val result = mutableListOf<Deferred<List<Element>>>()
 
         for (pageNumber in 1..endNumber) {
             val deferredJob: Deferred<List<Element>> = coroutineScope.async {
@@ -72,9 +71,9 @@ class CrawlingUtils(
 
                 document.select(ulSelector).toList()
             }
-            jobs.add(deferredJob)
+            result.add(deferredJob)
         }
-        return jobs
+        return result
     }
 
     suspend fun crawlingContents(
@@ -114,21 +113,19 @@ class CrawlingUtils(
 
                 // FIXME: 트랜잭션 처리 필요
                 mutex.withLock {
-                    if (newUrls.none { it.contentUrl == contentUrl }) {
-                        newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
+                    newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
 
-                        informationRepository.save(
-                            Information(
-                                title = title,
-                                content = content.toString().trim(),
-                                date = extractedDate,
-                                contentUrl = contentUrl,
-                                imgList = imgList,
-                                favicon = favicon,
-                                source = source
-                            )
+                    informationRepository.save(
+                        Information(
+                            title = title,
+                            content = content.toString().trim(),
+                            date = extractedDate,
+                            contentUrl = contentUrl,
+                            imgList = imgList,
+                            favicon = favicon,
+                            source = source
                         )
-                    }
+                    )
                 }
             }
         }
