@@ -16,12 +16,12 @@ class FunCrawlingStrategy(
     private val log = LoggerFactory.getLogger(this::class.java)
 
     override suspend fun crawl() {
+        log.info("펀시스템 크롤링 시작")
         val urlSelector = "a"
         val duration = measureTimedValue {
-            val allDocuments: List<Deferred<List<Element>>> = crawlingUtils.crawlingList(
+            val allDocuments: List<List<Element>> = crawlingUtils.crawlingList(
                 "https://fun.ssu.ac.kr/ko/program/all/list/all",
-                "ul.columns-4 li",
-                285
+                "ul.columns-4 li"
             )
 
             val toSaveDocuments: List<Element> =

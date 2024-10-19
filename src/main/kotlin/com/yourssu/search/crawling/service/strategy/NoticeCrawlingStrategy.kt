@@ -16,12 +16,12 @@ class NoticeCrawlingStrategy(
     private val log = LoggerFactory.getLogger(this::class.java)
 
     override suspend fun crawl() {
+        log.info("공지사항 크롤링 시작")
         val urlSelector = ".notice_col3 a"
         val duration = measureTimedValue {
-            val allDocuments: List<Deferred<List<Element>>> = crawlingUtils.crawlingList(
+            val allDocuments: List<List<Element>> = crawlingUtils.crawlingList(
                 "https://scatch.ssu.ac.kr/공지사항/page",
-                "ul.notice-lists li:not(.notice_head) ",
-                638
+                "ul.notice-lists li:not(.notice_head) "
             )
 
             val toSaveDocuments: List<Element> =
