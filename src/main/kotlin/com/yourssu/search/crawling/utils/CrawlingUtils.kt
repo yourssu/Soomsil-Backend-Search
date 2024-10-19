@@ -6,11 +6,9 @@ import com.yourssu.search.crawling.domain.SourceType
 import com.yourssu.search.crawling.repository.InformationRepository
 import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -21,7 +19,10 @@ import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.io.FileNotFoundException
 import java.time.LocalDate
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 
 @Component
@@ -38,7 +39,7 @@ class CrawlingUtils(
     private val log = LoggerFactory.getLogger(this::class.java)
 
     suspend fun filteringToSaveDocuments(
-        jobs: List<Deferred<List<Element>>>,
+        jobs: List<List<Element>>,
         sourceType: SourceType,
         urlSelector: String
     ): List<Element> {
@@ -48,7 +49,7 @@ class CrawlingUtils(
         }
         val savedUrls = savedData.map { it.contentUrl }
 
-        val temp = jobs.awaitAll().flatten().filterNot { element ->
+        val temp = jobs.flatten().filterNot { element ->
             (element.selectFirst(urlSelector)?.attr("abs:href") ?: "") in savedUrls
         }
 
@@ -58,22 +59,54 @@ class CrawlingUtils(
     suspend fun crawlingList(
         baseUrl: String,
         ulSelector: String,
-        endNumber: Int
-    ): List<Deferred<List<Element>>> {
-        val result = mutableListOf<Deferred<List<Element>>>()
+        maxConcurrentRequests: Int = 10
+    ): List<List<Element>> = coroutineScope {
+        val resultList = mutableListOf<List<Element>>()
+        val isFinished = AtomicBoolean(false)
+        val pageNumber = AtomicInteger(1)
 
-        for (pageNumber in 1..endNumber) {
-            val deferredJob: Deferred<List<Element>> = coroutineScope.async {
-                log.info("crawling page number : {}", pageNumber)
-                val document = Jsoup.connect("$baseUrl/$pageNumber")
-                    .userAgent(userAgent)
-                    .get()
-
-                document.select(ulSelector).toList()
+        val jobs = List(maxConcurrentRequests) {
+            coroutineScope.launch {
+                while (!isFinished.get()) {
+                    val currentPage = pageNumber.getAndIncrement()
+                    log.info("URL collecting.. pageNum: {}", currentPage)
+                    try {
+                        val elements = fetchPage(baseUrl, currentPage, ulSelector)
+                        if (elements.isNotEmpty()) {
+                            mutex.withLock {
+                                resultList.add(elements)
+                            }
+                        } else {
+                            isFinished.set(true)
+                        }
+                    } catch (e: Exception) {
+                        when (e) {
+                            is FileNotFoundException -> isFinished.set(true) // 문서가 없을 떄
+                            else -> println("Error crawling page $currentPage: ${e.message}")
+                        }
+                    }
+                }
             }
-            result.add(deferredJob)
         }
-        return result
+    
+        jobs.joinAll()
+        log.info("URL collecting finished")
+        resultList
+    }
+
+    private suspend fun fetchPage(baseUrl: String, pageNumber: Int, ulSelector: String): List<Element> = withContext(Dispatchers.IO) {
+        val document = Jsoup.connect("$baseUrl/$pageNumber")
+            .userAgent(userAgent)
+            .get()
+        val contents: List<Element> = document.select(ulSelector).map { it }
+
+        val firstElement: Element = contents[0]
+        
+        if (firstElement.hasClass("empty")) {
+            throw FileNotFoundException("No more pages")
+        }
+
+        contents
     }
 
     suspend fun crawlingContents(
@@ -131,7 +164,8 @@ class CrawlingUtils(
         }
 
         contentJobs.joinAll()
-        informationUrlRepository.saveAll(newUrls)
+        val toSaveUrls: List<InformationUrl> = newUrls.distinctBy { it.contentUrl }
+        informationUrlRepository.saveAll(toSaveUrls)
     }
 
     private fun extractDate(dateStr: String): LocalDate? {
