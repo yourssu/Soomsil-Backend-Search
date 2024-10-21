@@ -21,6 +21,11 @@ spring:
     password: ${DATASOURCE_PASSWORD}
     username: ${DATASOURCE_USERNAME}
   jpa:
+#    profiles:
+#      active: local
+#      group:
+#        local: logging-type-condole, logging-level-local
+#        dev: logging-type-file, logging-level-dev
     hibernate:
       ddl-auto: update
     properties:
