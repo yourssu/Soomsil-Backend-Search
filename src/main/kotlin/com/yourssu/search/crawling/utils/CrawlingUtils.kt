@@ -99,6 +99,10 @@ class CrawlingUtils(
             .userAgent(userAgent)
             .get()
         val contents: List<Element> = document.select(ulSelector).map { it }
+        
+        if (contents.isEmpty()) {
+            throw FileNotFoundException("No more pages")
+        }
 
         val firstElement: Element = contents[0]
         
