@@ -8,11 +8,10 @@ import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -32,14 +31,13 @@ class CrawlingUtils(
 
     @Value("\${general.user-agent}")
     private val userAgent: String,
-    
+
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-    private val mutex: Mutex = Mutex()
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
     suspend fun filteringToSaveDocuments(
-        jobs: List<List<Element>>,
+        lists: List<List<Element>>,
         sourceType: SourceType,
         urlSelector: String
     ): List<Element> {
@@ -49,7 +47,7 @@ class CrawlingUtils(
         }
         val savedUrls = savedData.map { it.contentUrl }
 
-        val temp = jobs.flatten().filterNot { element ->
+        val temp = lists.flatten().filterNot { element ->
             (element.selectFirst(urlSelector)?.attr("abs:href") ?: "") in savedUrls
         }
 
@@ -61,56 +59,62 @@ class CrawlingUtils(
         ulSelector: String,
         maxConcurrentRequests: Int = 10
     ): List<List<Element>> = coroutineScope {
-        val resultList = mutableListOf<List<Element>>()
+        val elementChannel = Channel<List<Element>>(Channel.UNLIMITED)
         val isFinished = AtomicBoolean(false)
         val pageNumber = AtomicInteger(1)
 
         val jobs = List(maxConcurrentRequests) {
             coroutineScope.launch {
                 while (!isFinished.get()) {
-                    val currentPage = pageNumber.getAndIncrement()
+                    val currentPage: Int = pageNumber.getAndIncrement()
                     log.info("URL collecting.. pageNum: {}", currentPage)
                     try {
-                        val elements = fetchPage(baseUrl, currentPage, ulSelector)
+                        val elements: List<Element> = fetchPage(baseUrl, currentPage, ulSelector)
                         if (elements.isNotEmpty()) {
-                            mutex.withLock {
-                                resultList.add(elements)
-                            }
+                            elementChannel.send(elements)
                         } else {
                             isFinished.set(true)
                         }
                     } catch (e: Exception) {
                         when (e) {
-                            is FileNotFoundException -> isFinished.set(true) // 문서가 없을 떄
+                            is FileNotFoundException -> isFinished.set(true)
                             else -> println("Error crawling page $currentPage: ${e.message}")
                         }
                     }
                 }
             }
         }
-    
+
         jobs.joinAll()
+        elementChannel.close()
+
+        val resultList = mutableListOf<List<Element>>()
+        for (element in elementChannel) {
+            resultList.add(element)
+        }
+
         log.info("URL collecting finished")
         resultList
     }
 
-    private suspend fun fetchPage(baseUrl: String, pageNumber: Int, ulSelector: String): List<Element> = withContext(Dispatchers.IO) {
+
+    private suspend fun fetchPage(baseUrl: String, pageNumber: Int, ulSelector: String): List<Element> {
         val document = Jsoup.connect("$baseUrl/$pageNumber")
             .userAgent(userAgent)
             .get()
         val contents: List<Element> = document.select(ulSelector).map { it }
-        
+
         if (contents.isEmpty()) {
             throw FileNotFoundException("No more pages")
         }
 
         val firstElement: Element = contents[0]
-        
+
         if (firstElement.hasClass("empty")) {
             throw FileNotFoundException("No more pages")
         }
 
-        contents
+        return contents
     }
 
     suspend fun crawlingContents(
@@ -120,10 +124,9 @@ class CrawlingUtils(
         urlSelector: String,
         dateSelector: String,
         favicon: String?,
-        source: String,
         sourceType: SourceType
     ) {
-        val newUrls = mutableListOf<InformationUrl>()
+        val urlChannel = Channel<InformationUrl>(Channel.UNLIMITED)
 
         val contentJobs: List<Job> = toSaveDocuments.map { element ->
             coroutineScope.launch {
@@ -148,28 +151,32 @@ class CrawlingUtils(
                     return@launch
                 }
 
-                // FIXME: 트랜잭션 처리 필요
-                mutex.withLock {
-                    newUrls.add(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
+                urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
 
-                    informationRepository.save(
-                        Information(
-                            title = title,
-                            content = content.toString().trim(),
-                            date = extractedDate,
-                            contentUrl = contentUrl,
-                            imgList = imgList,
-                            favicon = favicon,
-                            source = source
-                        )
+                informationRepository.save(
+                    Information(
+                        title = title,
+                        content = content.toString().trim(),
+                        date = extractedDate,
+                        contentUrl = contentUrl,
+                        imgList = imgList,
+                        favicon = favicon,
+                        source = sourceType.value
                     )
-                }
+                )
             }
         }
 
         contentJobs.joinAll()
-        val toSaveUrls: List<InformationUrl> = newUrls.distinctBy { it.contentUrl }
-        informationUrlRepository.saveAll(toSaveUrls)
+        urlChannel.close()
+
+        val toSaveUrls = mutableListOf<InformationUrl>()
+        for (url in urlChannel) {
+            toSaveUrls.add(url)
+        }
+
+        val distinctUrls = toSaveUrls.distinctBy { it.contentUrl }
+        informationUrlRepository.saveAll(distinctUrls)
     }
 
     private fun extractDate(dateStr: String): LocalDate? {

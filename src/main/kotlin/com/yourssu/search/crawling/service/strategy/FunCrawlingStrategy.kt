@@ -33,7 +33,6 @@ class FunCrawlingStrategy(
                 urlSelector = urlSelector,
                 dateSelector = "small.thema_point_color.topic ~ small time",
                 favicon = "https://fun.ssu.ac.kr/attachment/view/51/favicon.ico",
-                source = "펀시스템",
                 sourceType = SourceType.FUN
             )
         }

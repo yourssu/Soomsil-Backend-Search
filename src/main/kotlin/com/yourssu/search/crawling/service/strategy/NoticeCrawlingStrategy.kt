@@ -24,7 +24,11 @@ class NoticeCrawlingStrategy(
             )
 
             val toSaveDocuments: List<Element> =
-                crawlingUtils.filteringToSaveDocuments(allDocuments, SourceType.NOTICE, urlSelector)
+                crawlingUtils.filteringToSaveDocuments(
+                    lists = allDocuments, 
+                    sourceType = SourceType.NOTICE, 
+                    urlSelector = urlSelector
+                )
 
             crawlingUtils.crawlingContents(
                 toSaveDocuments = toSaveDocuments,
@@ -33,7 +37,6 @@ class NoticeCrawlingStrategy(
                 urlSelector = urlSelector,
                 dateSelector = ".notice_col1 .text-info",
                 favicon = "https://scatch.ssu.ac.kr/wp-content/uploads/sites/5/2019/07/cropped-favicon-32x32.png",
-                source = "공지사항",
                 sourceType = SourceType.NOTICE
             )
         }
