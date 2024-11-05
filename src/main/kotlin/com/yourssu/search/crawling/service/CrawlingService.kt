@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service
 
 @Service
 class CrawlingService(
-    private val strategies: Map<String, CrawlingStrategy>,
+    public val strategies: Map<String, CrawlingStrategy>,
     private val informationRepository: InformationRepository,
 ) {
 
