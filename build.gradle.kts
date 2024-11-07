@@ -39,6 +39,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 
     implementation("net.logstash.logback:logstash-logback-encoder:7.4")
     implementation("ch.qos.logback:logback-classic:1.3.7")
