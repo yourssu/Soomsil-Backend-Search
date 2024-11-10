@@ -14,12 +14,20 @@ springdoc:
     config-url: /v3/api-docs/swagger-config
     url: /v3/api-docs
 
+#spring:
+#  datasource:
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    url: ${DATASOURCE_URL}
+#    password: ${DATASOURCE_PASSWORD}
+#    username: ${DATASOURCE_USERNAME}
 spring:
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
+  r2dbc:
     url: ${DATASOURCE_URL}
     password: ${DATASOURCE_PASSWORD}
     username: ${DATASOURCE_USERNAME}
+  r2dbc.pool:
+    enabled: true
+
   jpa:
 #    profiles:
 #      active: local

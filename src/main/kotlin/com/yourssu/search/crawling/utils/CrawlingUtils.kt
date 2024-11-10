@@ -3,13 +3,14 @@ package com.yourssu.search.crawling.utils
 import com.yourssu.search.crawling.domain.Information
 import com.yourssu.search.crawling.domain.InformationUrl
 import com.yourssu.search.crawling.domain.SourceType
-import com.yourssu.search.crawling.repository.InformationRepository
+import com.yourssu.search.crawling.repository.CoroutineInformationRepository
 import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -18,6 +19,7 @@ import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.io.FileNotFoundException
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicBoolean
@@ -26,7 +28,7 @@ import java.util.regex.Pattern
 
 @Component
 class CrawlingUtils(
-    private val informationRepository: InformationRepository,
+    private val coroutineElasticsearchRepository: CoroutineInformationRepository,
     private val informationUrlRepository: InformationUrlRepository,
 
     @Value("\${general.user-agent}")
@@ -43,7 +45,7 @@ class CrawlingUtils(
     ): List<Element> {
         val savedData: List<InformationUrl>
         withContext(Dispatchers.IO) {
-            savedData = informationUrlRepository.findAllBySourceType(sourceType)
+            savedData = informationUrlRepository.findAllBySourceType(sourceType).toList()
         }
         val savedUrls = savedData.map { it.contentUrl }
 
@@ -127,6 +129,7 @@ class CrawlingUtils(
         sourceType: SourceType
     ) {
         val urlChannel = Channel<InformationUrl>(Channel.UNLIMITED)
+        val informationList = mutableListOf<Information>()
 
         val contentJobs: List<Job> = toSaveDocuments.map { element ->
             coroutineScope.launch {
@@ -153,7 +156,7 @@ class CrawlingUtils(
 
                 urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
 
-                informationRepository.save(
+                informationList.add(
                     Information(
                         title = title,
                         content = content.toString().trim(),
@@ -164,11 +167,14 @@ class CrawlingUtils(
                         source = sourceType.value
                     )
                 )
+                //log.info("data crawl : $contentUrl");
             }
         }
 
         contentJobs.joinAll()
         urlChannel.close()
+
+        // coroutineElasticsearchRepository.saveAll(informationList)
 
         val toSaveUrls = mutableListOf<InformationUrl>()
         for (url in urlChannel) {
