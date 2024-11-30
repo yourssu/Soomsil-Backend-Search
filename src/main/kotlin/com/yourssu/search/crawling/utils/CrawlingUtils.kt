@@ -35,6 +35,7 @@ class CrawlingUtils(
     private val userAgent: String,
 
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val coroutineInformationRepository: CoroutineInformationRepository
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
@@ -99,7 +100,6 @@ class CrawlingUtils(
         resultList
     }
 
-
     private suspend fun fetchPage(baseUrl: String, pageNumber: Int, ulSelector: String): List<Element> {
         val document = Jsoup.connect("$baseUrl/$pageNumber")
             .userAgent(userAgent)
@@ -119,6 +119,7 @@ class CrawlingUtils(
         return contents
     }
 
+    @Transactional
     suspend fun crawlingContents(
         toSaveDocuments: List<Element>,
         titleSelector: String,
@@ -128,9 +129,6 @@ class CrawlingUtils(
         favicon: String?,
         sourceType: SourceType
     ) {
-        val urlChannel = Channel<InformationUrl>(Channel.UNLIMITED)
-        val informationList = mutableListOf<Information>()
-
         val contentJobs: List<Job> = toSaveDocuments.map { element ->
             coroutineScope.launch {
                 val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
@@ -154,35 +152,37 @@ class CrawlingUtils(
                     return@launch
                 }
 
-                urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
-
-                informationList.add(
-                    Information(
-                        title = title,
-                        content = content.toString().trim(),
-                        date = extractedDate,
-                        contentUrl = contentUrl,
-                        imgList = imgList,
-                        favicon = favicon,
-                        source = sourceType.value
+                try {
+                    // `InformationUrl`을 즉시 저장
+                    informationUrlRepository.save(
+                        InformationUrl(
+                            contentUrl = contentUrl,
+                            sourceType = sourceType
+                        )
                     )
-                )
-                //log.info("data crawl : $contentUrl");
+                    log.info("Saved URL: $contentUrl")
+
+                    // `Information`도 저장
+                    coroutineInformationRepository.save(
+                        Information(
+                            title = title,
+                            content = content.toString().trim(),
+                            date = extractedDate,
+                            contentUrl = contentUrl,
+                            imgList = imgList,
+                            favicon = favicon,
+                            source = sourceType.value
+                        )
+                    )
+                    // log.info("Saved Information for URL: $contentUrl")
+                } catch (e: Exception) {
+                    // log.error("Error saving URL or Information for $contentUrl", e)
+                }
             }
         }
 
         contentJobs.joinAll()
-        urlChannel.close()
-
-        // coroutineElasticsearchRepository.saveAll(informationList)
-
-        val toSaveUrls = mutableListOf<InformationUrl>()
-        for (url in urlChannel) {
-            toSaveUrls.add(url)
-        }
-
-        val distinctUrls = toSaveUrls.distinctBy { it.contentUrl }
-        informationUrlRepository.saveAll(distinctUrls)
+        log.info("Crawling and saving completed.")
     }
 
     private fun extractDate(dateStr: String): LocalDate? {
@@ -203,4 +203,16 @@ class CrawlingUtils(
             null // 정규표현식에 맞지 않으면 null 반환
         }
     }
+
+    /*@Transactional
+    suspend fun saveAllWithRollback(urls: List<InformationUrl>) {
+        urls.forEachIndexed { index, url ->
+            informationUrlRepository.save(url)
+
+            // 인위적으로 예외 발생
+            if (index % 10 == 0) {
+                throw RuntimeException("Simulated exception for rollback")
+            }
+        }
+    }*/
 }

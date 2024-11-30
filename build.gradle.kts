@@ -30,9 +30,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
-    //implementation("io.r2dbc:r2dbc-pool")
+    // implementation("io.r2dbc:r2dbc-pool")
     implementation("org.mariadb:r2dbc-mariadb:1.1.2")
-
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0")
 

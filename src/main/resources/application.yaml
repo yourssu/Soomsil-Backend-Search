@@ -28,14 +28,14 @@ spring:
   r2dbc.pool:
     enabled: true
 
-  jpa:
+#  jpa:
 #    profiles:
 #      active: local
 #      group:
 #        local: logging-type-condole, logging-level-local
 #        dev: logging-type-file, logging-level-dev
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+#    hibernate:
+#      ddl-auto: update
+#    properties:
+#      hibernate:
+#        dialect: org.hibernate.dialect.MySQL8Dialect

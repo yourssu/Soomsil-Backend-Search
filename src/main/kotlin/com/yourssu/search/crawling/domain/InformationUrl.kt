@@ -1,18 +1,17 @@
 package com.yourssu.search.crawling.domain
 
 import org.springframework.data.annotation.Id
-import org.springframework.data.relational.core.mapping.Table
 import org.springframework.data.relational.core.mapping.Column
+import org.springframework.data.relational.core.mapping.Table
 
-@Table("information_url")  // 테이블 이름을 지정
+@Table("information_url")
 class InformationUrl(
-    @Id  // 기본 키로 지정
+    @Id
     val id: Long? = null,
 
-    @Column("content_url")  // 열 이름을 매핑
+    @Column("content_url")
     val contentUrl: String,
 
-    @Column("source_type")  // 열 이름을 매핑
+    @Column("source_type")
     val sourceType: SourceType
 )
-

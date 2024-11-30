@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class CrawlingService(
     public val strategies: Map<String, CrawlingStrategy>,
-    private val informationRepository: InformationRepository,
+    private val informationRepository: InformationRepository
 ) {
 
     suspend fun executeCrawling(strategyKey: String) {

@@ -11,7 +11,7 @@ import kotlin.time.measureTimedValue
 @Component("fun")
 class FunCrawlingStrategy(
     private val crawlingUtils: CrawlingUtils
-): CrawlingStrategy {
+) : CrawlingStrategy {
     private val log = LoggerFactory.getLogger(this::class.java)
 
     override suspend fun crawl() {
@@ -25,8 +25,10 @@ class FunCrawlingStrategy(
 
             val toSaveDocuments: List<Element> =
                 crawlingUtils.filteringToSaveDocuments(allDocuments, SourceType.FUN, urlSelector)
+            val flattenedDocuments: List<Element> = allDocuments.flatten()
 
             crawlingUtils.crawlingContents(
+                // toSaveDocuments = flattenedDocuments,
                 toSaveDocuments = toSaveDocuments,
                 titleSelector = ".content .title",
                 contentSelector = "div .description p",
