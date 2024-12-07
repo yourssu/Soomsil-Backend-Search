@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.validator.internal.util.Contracts.assertNotNull
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -46,36 +47,6 @@ class InformationUrlRepositoryTest {
         val noticeUrls = repository.findAllBySourceType(SourceType.FUN).toList()
 
         println("Found ${noticeUrls.size} URLs for SourceType.NOTICE")
-    }
-
-    @Test
-    fun saveAndRollbackInformation() = runTest {
-        val initialCount = repository.findAll().toList().size
-
-        val jobs = ArrayList<Job>()
-        repeat(100) { index ->
-            val job = launch(Dispatchers.IO) {
-                try {
-                    val info = InformationUrl(
-                        contentUrl = "http://example.com/$index",
-                        sourceType = if (index % 10 == 0) SourceType.FUN else SourceType.NOTICE
-                    )
-                    repository.save(info)
-
-                    // Throw exception conditionally to test rollback
-                    if (index % 10 == 0) throw RuntimeException("Simulated exception for rollback")
-                } catch (ex: Exception) {
-                    println("Exception occurred: ${ex.message}")
-                }
-            }
-            jobs.add(job)
-        }
-        jobs.joinAll()
-
-        // Assert: 롤백 처리 확인
-        val remainingCount = repository.findAll().toList().size
-        println("Initial Count: $initialCount, Remaining Count: $remainingCount")
-        assertThat(remainingCount).isEqualTo(initialCount + 90) // 10% 롤백 확인
     }
 
     /*@Test

@@ -210,7 +210,7 @@ class CrawlingUtils(
             informationUrlRepository.save(url)
 
             // 인위적으로 예외 발생
-            if (index % 10 == 0) {
+            if (index == 90) {
                 throw RuntimeException("Simulated exception for rollback")
             }
         }
