@@ -65,7 +65,7 @@ class ConcurrencyTest {
 
             senderJobs.joinAll()
             channel.close()
-            
+
             for (i in channel) {
                 newUrls.add(i)
             }
@@ -100,18 +100,19 @@ class ConcurrencyTest {
                 println("Round $i - Mutex: ${mutexTime}ms, Channel: ${channelTime}ms")
             }
         }
-        
+
         val mutexAvg = mutexTimes.average()
         val mutexMin = mutexTimes.min()
         val mutexMax = mutexTimes.max()
-        
+
         val channelAvg = channelTimes.average()
         val channelMin = channelTimes.min()
         val channelMax = channelTimes.max()
 
         val improvement = ((mutexAvg - channelAvg) / mutexAvg) * 100.0
 
-        println("""
+        println(
+            """
                 병렬 실행 성능 비교:
                 Mutex
                 - 평균: ${mutexAvg}ms, 
@@ -124,6 +125,7 @@ class ConcurrencyTest {
                 - 최대: ${channelMax}ms
                 
                 평균 개선량: ${"%.2f".format(improvement)}%
-                """.trimIndent())
+            """.trimIndent()
+        )
     }
 }

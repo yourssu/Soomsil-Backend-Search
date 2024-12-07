@@ -3,13 +3,14 @@ package com.yourssu.search.crawling.utils
 import com.yourssu.search.crawling.domain.Information
 import com.yourssu.search.crawling.domain.InformationUrl
 import com.yourssu.search.crawling.domain.SourceType
-import com.yourssu.search.crawling.repository.InformationRepository
+import com.yourssu.search.crawling.repository.CoroutineInformationRepository
 import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -18,6 +19,7 @@ import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.io.FileNotFoundException
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicBoolean
@@ -26,13 +28,14 @@ import java.util.regex.Pattern
 
 @Component
 class CrawlingUtils(
-    private val informationRepository: InformationRepository,
+    private val coroutineElasticsearchRepository: CoroutineInformationRepository,
     private val informationUrlRepository: InformationUrlRepository,
 
     @Value("\${general.user-agent}")
     private val userAgent: String,
 
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val coroutineInformationRepository: CoroutineInformationRepository
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
@@ -43,7 +46,7 @@ class CrawlingUtils(
     ): List<Element> {
         val savedData: List<InformationUrl>
         withContext(Dispatchers.IO) {
-            savedData = informationUrlRepository.findAllBySourceType(sourceType)
+            savedData = informationUrlRepository.findAllBySourceType(sourceType).toList()
         }
         val savedUrls = savedData.map { it.contentUrl }
 
@@ -97,7 +100,6 @@ class CrawlingUtils(
         resultList
     }
 
-
     private suspend fun fetchPage(baseUrl: String, pageNumber: Int, ulSelector: String): List<Element> {
         val document = Jsoup.connect("$baseUrl/$pageNumber")
             .userAgent(userAgent)
@@ -117,6 +119,7 @@ class CrawlingUtils(
         return contents
     }
 
+    @Transactional
     suspend fun crawlingContents(
         toSaveDocuments: List<Element>,
         titleSelector: String,
@@ -126,8 +129,6 @@ class CrawlingUtils(
         favicon: String?,
         sourceType: SourceType
     ) {
-        val urlChannel = Channel<InformationUrl>(Channel.UNLIMITED)
-
         val contentJobs: List<Job> = toSaveDocuments.map { element ->
             coroutineScope.launch {
                 val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
@@ -151,32 +152,37 @@ class CrawlingUtils(
                     return@launch
                 }
 
-                urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
-
-                informationRepository.save(
-                    Information(
-                        title = title,
-                        content = content.toString().trim(),
-                        date = extractedDate,
-                        contentUrl = contentUrl,
-                        imgList = imgList,
-                        favicon = favicon,
-                        source = sourceType.value
+                try {
+                    // `InformationUrl`을 즉시 저장
+                    informationUrlRepository.save(
+                        InformationUrl(
+                            contentUrl = contentUrl,
+                            sourceType = sourceType
+                        )
                     )
-                )
+                    log.info("Saved URL: $contentUrl")
+
+                    // `Information`도 저장
+                    coroutineInformationRepository.save(
+                        Information(
+                            title = title,
+                            content = content.toString().trim(),
+                            date = extractedDate,
+                            contentUrl = contentUrl,
+                            imgList = imgList,
+                            favicon = favicon,
+                            source = sourceType.value
+                        )
+                    )
+                    // log.info("Saved Information for URL: $contentUrl")
+                } catch (e: Exception) {
+                    // log.error("Error saving URL or Information for $contentUrl", e)
+                }
             }
         }
 
         contentJobs.joinAll()
-        urlChannel.close()
-
-        val toSaveUrls = mutableListOf<InformationUrl>()
-        for (url in urlChannel) {
-            toSaveUrls.add(url)
-        }
-
-        val distinctUrls = toSaveUrls.distinctBy { it.contentUrl }
-        informationUrlRepository.saveAll(distinctUrls)
+        log.info("Crawling and saving completed.")
     }
 
     private fun extractDate(dateStr: String): LocalDate? {
@@ -197,4 +203,16 @@ class CrawlingUtils(
             null // 정규표현식에 맞지 않으면 null 반환
         }
     }
+
+    /*@Transactional
+    suspend fun saveAllWithRollback(urls: List<InformationUrl>) {
+        urls.forEachIndexed { index, url ->
+            informationUrlRepository.save(url)
+
+            // 인위적으로 예외 발생
+            if (index == 90) {
+                throw RuntimeException("Simulated exception for rollback")
+            }
+        }
+    }*/
 }

@@ -4,11 +4,12 @@ import com.yourssu.search.crawling.repository.InformationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class CrawlingService(
-    private val strategies: Map<String, CrawlingStrategy>,
-    private val informationRepository: InformationRepository,
+    public val strategies: Map<String, CrawlingStrategy>,
+    private val informationRepository: InformationRepository
 ) {
 
     suspend fun executeCrawling(strategyKey: String) {
@@ -17,6 +18,7 @@ class CrawlingService(
         strategy.crawl()
     }
 
+    @Transactional
     suspend fun deleteData() {
         withContext(Dispatchers.IO) {
             informationRepository.deleteAll()

@@ -1,25 +1,17 @@
 package com.yourssu.search.crawling.domain
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Table
+import org.springframework.data.annotation.Id
+import org.springframework.data.relational.core.mapping.Column
+import org.springframework.data.relational.core.mapping.Table
 
-@Entity
-@Table(name = "information_url")
+@Table("information_url")
 class InformationUrl(
-    @field:Id
-    @field:GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
     val id: Long? = null,
 
-    @field:Column(name = "content_url", nullable = false, unique = true, length = 500)
+    @Column("content_url")
     val contentUrl: String,
 
-    @field:Column(name = "source_type", nullable = false)
-    @field:Enumerated(EnumType.STRING)
+    @Column("source_type")
     val sourceType: SourceType
 )

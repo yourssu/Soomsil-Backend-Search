@@ -11,7 +11,7 @@ import kotlin.time.measureTimedValue
 @Component("notice")
 class NoticeCrawlingStrategy(
     private val crawlingUtils: CrawlingUtils
-): CrawlingStrategy {
+) : CrawlingStrategy {
     private val log = LoggerFactory.getLogger(this::class.java)
 
     override suspend fun crawl() {
@@ -25,12 +25,12 @@ class NoticeCrawlingStrategy(
 
             val toSaveDocuments: List<Element> =
                 crawlingUtils.filteringToSaveDocuments(
-                    lists = allDocuments, 
-                    sourceType = SourceType.NOTICE, 
-                    urlSelector = urlSelector
+                    lists = allDocuments, sourceType = SourceType.NOTICE, urlSelector = urlSelector
                 )
+            val flattenedDocuments: List<Element> = allDocuments.flatten()
 
             crawlingUtils.crawlingContents(
+                // toSaveDocuments = flattenedDocuments,
                 toSaveDocuments = toSaveDocuments,
                 titleSelector = ".notice_col3 a .d-inline-blcok.m-pt-5",
                 contentSelector = "div.bg-white p",
