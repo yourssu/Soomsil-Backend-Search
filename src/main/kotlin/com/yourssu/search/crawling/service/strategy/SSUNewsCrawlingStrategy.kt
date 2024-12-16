@@ -17,10 +17,10 @@ class SSUNewsCrawlingStrategy(
     companion object {
         const val URL_SELECTOR = ".titles a"
         const val BASE_URL = "https://www.ssunews.net"
-        const val UL_SELECTOR = "ul.types .views"
+        const val UL_SELECTOR = "#section-list > ul > li:nth-child(1)"
         const val TITLE_SELECTOR = ".titles a"
-        const val CONTENT_SELECTOR = "#article-view-content-div p"
-        const val DATE_SELECTOR = "#section-list li span"
+        const val CONTENT_SELECTOR = "#article-view-content-div div"
+        const val DATE_SELECTOR = "#section-list > ul > li:nth-child(1) > span"
     }
     
     override suspend fun crawl() {
@@ -28,8 +28,10 @@ class SSUNewsCrawlingStrategy(
         
         val duration = measureTimedValue {
             val allDocuments: List<List<Element>> = crawlingUtils.crawlingList(
-                baseUrl = "${BASE_URL}/news/articleList.html?pages=",
-                ulSelector = UL_SELECTOR
+                baseUrl = "${BASE_URL}/news/articleList.html?view_type=sm&page=",
+                ulSelector = UL_SELECTOR, 
+                maxConcurrentRequests = 1,
+                channelCapacity = 100,
             )
 
             val toSaveDocuments: List<Element> =
@@ -46,7 +48,9 @@ class SSUNewsCrawlingStrategy(
                 urlSelector = URL_SELECTOR,
                 dateSelector = DATE_SELECTOR,
                 favicon = "NONE",
-                sourceType = SourceType.SSUNEWS
+                sourceType = SourceType.SSUNEWS,
+                channelCapacity = 100,
+                delayMillis = 10,
             )
         }
         log.info("all time use {}", duration.duration.inWholeSeconds)
