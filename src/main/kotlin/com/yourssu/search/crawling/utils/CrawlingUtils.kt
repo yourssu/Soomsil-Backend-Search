@@ -7,9 +7,9 @@ import com.yourssu.search.crawling.repository.InformationRepository
 import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -19,10 +19,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.io.FileNotFoundException
-import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.regex.Pattern
 
 @Component
 class CrawlingUtils(
@@ -33,13 +31,14 @@ class CrawlingUtils(
     private val userAgent: String,
 
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val dateExtractor: DateExtractor
 ) {
     private val log = LoggerFactory.getLogger(this::class.java)
 
     suspend fun filteringToSaveDocuments(
         lists: List<List<Element>>,
         sourceType: SourceType,
-        urlSelector: String
+        urlSelector: String,
     ): List<Element> {
         val savedData: List<InformationUrl>
         withContext(Dispatchers.IO) {
@@ -57,49 +56,67 @@ class CrawlingUtils(
     suspend fun crawlingList(
         baseUrl: String,
         ulSelector: String,
-        maxConcurrentRequests: Int = 10
+        maxConcurrentRequests: Int = 10,
+        pageRequestType: PageRequestType = PageRequestType.PATH_PARAMETER,
+        channelCapacity: Int
     ): List<List<Element>> = coroutineScope {
-        val elementChannel = Channel<List<Element>>(Channel.UNLIMITED)
+        val elementChannel = Channel<List<Element>>(channelCapacity)
         val isFinished = AtomicBoolean(false)
         val pageNumber = AtomicInteger(1)
 
-        val jobs = List(maxConcurrentRequests) {
-            coroutineScope.launch {
-                while (!isFinished.get()) {
-                    val currentPage: Int = pageNumber.getAndIncrement()
-                    log.info("URL collecting.. pageNum: {}", currentPage)
-                    try {
-                        val elements: List<Element> = fetchPage(baseUrl, currentPage, ulSelector)
-                        if (elements.isNotEmpty()) {
-                            elementChannel.send(elements)
-                        } else {
-                            isFinished.set(true)
-                        }
-                    } catch (e: Exception) {
-                        when (e) {
-                            is FileNotFoundException -> isFinished.set(true)
-                            else -> println("Error crawling page $currentPage: ${e.message}")
+        // 크롤링 데이터를 채널에 보내는 작업 (생산자)
+        val producerJob = launch {
+            val jobs = List(maxConcurrentRequests) {
+                launch {
+                    while (!isFinished.get()) {
+                        val currentPage: Int = pageNumber.getAndIncrement()
+                        log.info("URL collecting.. pageNum: {}", currentPage)
+                        val pageUrl: String = getPageUrl(baseUrl, currentPage, pageRequestType)
+                        try {
+                            val elements: List<Element> = fetchPage(pageUrl, ulSelector)
+                            if (elements.isNotEmpty()) {
+                                elementChannel.send(elements)
+                            } else {
+                                isFinished.set(true) // 더 이상 데이터가 없으면 종료 플래그 설정
+                            }
+                        } catch (e: Exception) {
+                            when (e) {
+                                is FileNotFoundException -> isFinished.set(true)
+                                else -> log.error("Error crawling page $currentPage: ${e.message}", e)
+                            }
                         }
                     }
                 }
             }
+            jobs.joinAll()
+            elementChannel.close()
         }
 
-        jobs.joinAll()
-        elementChannel.close()
-
+        // 채널에서 데이터를 소비하는 작업 (소비자)
         val resultList = mutableListOf<List<Element>>()
-        for (element in elementChannel) {
-            resultList.add(element)
+        val consumerJob = launch {
+            for (element in elementChannel) {
+                resultList.add(element)
+            }
         }
+
+        producerJob.join() // 생산자 작업 완료 대기
+        consumerJob.join() // 소비자 작업 완료 대기
 
         log.info("URL collecting finished")
         resultList
     }
+    
+    private suspend fun getPageUrl(baseUrl: String, currentPage: Int, pageRequestType: PageRequestType): String {
+        return when (pageRequestType) {
+            PageRequestType.PATH_PARAMETER -> "$baseUrl$currentPage"
+            PageRequestType.QUERY_PARAMETER -> "$baseUrl$currentPage"
+        }
+    }
 
 
-    private suspend fun fetchPage(baseUrl: String, pageNumber: Int, ulSelector: String): List<Element> {
-        val document = Jsoup.connect("$baseUrl/$pageNumber")
+    private suspend fun fetchPage(pageUrl: String, ulSelector: String): List<Element> {
+        val document = Jsoup.connect(pageUrl)
             .userAgent(userAgent)
             .get()
         val contents: List<Element> = document.select(ulSelector).map { it }
@@ -124,77 +141,73 @@ class CrawlingUtils(
         urlSelector: String,
         dateSelector: String,
         favicon: String?,
-        sourceType: SourceType
-    ) {
-        val urlChannel = Channel<InformationUrl>(Channel.UNLIMITED)
+        sourceType: SourceType,
+        channelCapacity: Int = 10000,
+        delayMillis: Long = 0L
+    ) = coroutineScope {
+        val urlChannel = Channel<InformationUrl>(channelCapacity)
 
-        val contentJobs: List<Job> = toSaveDocuments.map { element ->
-            coroutineScope.launch {
-                val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
-                val title = element.selectFirst(titleSelector)?.text() ?: ""
-                val contentUrl = element.selectFirst(urlSelector)?.attr("abs:href") ?: ""
-                val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
+        // 생산자: 데이터를 크롤링하고 채널에 전송
+        val producerJob = launch {
+            toSaveDocuments.forEach { element ->
+                try {
+                    val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
+                    val title = element.selectFirst(titleSelector)?.text() ?: ""
+                    val contentUrl = element.selectFirst(urlSelector)?.attr("abs:href") ?: ""
+                    
+                    log.info("Crawling content: $title")
 
-                val imgList = paragraphs.select("img").map { img -> img.attr("src") }
+                    delay(delayMillis)
+                    val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
 
-                val content = StringBuilder()
-                for (paragraph in paragraphs) {
-                    val trimmedText = paragraph.text().replace("\\s+".toRegex(), " ").trim()
-                    if (trimmedText.isNotEmpty()) {
-                        content.append(trimmedText).append("\n")
+                    val imgList = paragraphs.select("img").map { img -> img.attr("src") }
+
+                    val content = StringBuilder()
+                    for (paragraph in paragraphs) {
+                        val trimmedText = paragraph.text().replace("\\s+".toRegex(), " ").trim()
+                        if (trimmedText.isNotEmpty()) {
+                            content.append(trimmedText).append("\n")
+                        }
                     }
-                }
-                val extractedDate = extractDate(rawDate)
+                    val extractedDate = dateExtractor.extract(rawDate)
 
-                if (extractedDate == null) {
-                    log.error("날짜 추출 실패 : $rawDate")
-                    return@launch
-                }
+                    if (extractedDate == null) {
+                        log.error("날짜 추출 실패 : $rawDate")
+                        return@launch
+                    }
 
-                urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
+                    urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
 
-                informationRepository.save(
-                    Information(
-                        title = title,
-                        content = content.toString().trim(),
-                        date = extractedDate,
-                        contentUrl = contentUrl,
-                        imgList = imgList,
-                        favicon = favicon,
-                        source = sourceType.value
+                    informationRepository.save(
+                        Information(
+                            title = title,
+                            content = content.toString().trim(),
+                            date = extractedDate,
+                            contentUrl = contentUrl,
+                            imgList = imgList,
+                            favicon = favicon,
+                            source = sourceType.value
+                        )
                     )
-                )
+                } catch (e: Exception) {
+                    log.error("크롤링 중 오류 발생: ${e.message}", e)
+                }
             }
         }
 
-        contentJobs.joinAll()
-        urlChannel.close()
-
+        // 소비자: 채널에서 데이터를 읽고 저장
         val toSaveUrls = mutableListOf<InformationUrl>()
-        for (url in urlChannel) {
-            toSaveUrls.add(url)
+        val consumerJob = launch {
+            for (url in urlChannel) {
+                toSaveUrls.add(url)
+            }
         }
+
+        producerJob.join() // 생산자 작업 완료 대기
+        urlChannel.close() // 생산 완료 후 채널 닫기
+        consumerJob.join() // 소비자 작업 완료 대기
 
         val distinctUrls = toSaveUrls.distinctBy { it.contentUrl }
         informationUrlRepository.saveAll(distinctUrls)
-    }
-
-    private fun extractDate(dateStr: String): LocalDate? {
-        val datePattern = Pattern.compile("(\\d{4})\\.(\\d{2})\\.(\\d{2})")
-        val matcher = datePattern.matcher(dateStr)
-
-        return if (matcher.find()) {
-            val year = matcher.group(1).toInt()
-            val month = matcher.group(2).toInt()
-            val day = matcher.group(3).toInt()
-
-            try {
-                LocalDate.of(year, month, day)
-            } catch (e: Exception) {
-                null // 날짜 변환 실패 시 null 반환
-            }
-        } else {
-            null // 정규표현식에 맞지 않으면 null 반환
-        }
     }
 }
