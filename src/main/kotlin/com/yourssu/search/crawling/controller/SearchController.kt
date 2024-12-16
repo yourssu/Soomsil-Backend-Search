@@ -1,5 +1,7 @@
 package com.yourssu.search.crawling.controller
 
+import com.yourssu.search.crawling.domain.PlatformType
+import com.yourssu.search.crawling.dto.NewsResponse
 import com.yourssu.search.crawling.dto.SearchListResponse
 import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
 import com.yourssu.search.crawling.service.SearchService
@@ -32,5 +34,14 @@ class SearchController(
     @GetMapping("/topQueries")
     fun getTopKeywords(): SearchTopQueriesResponse {
         return searchService.searchTopQueries()
+    }
+    
+    @GetMapping("/news")
+    fun getNews(
+        @RequestParam platform: String
+    ): NewsResponse {
+        val platformEnum = PlatformType.valueOf(platform)
+        
+        return searchService.getNews(platformEnum)
     }
 }
