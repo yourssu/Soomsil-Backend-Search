@@ -1,9 +1,13 @@
 package com.yourssu.search.crawling.service
 
 import com.yourssu.search.crawling.domain.Information
+import com.yourssu.search.crawling.domain.PlatformType
+import com.yourssu.search.crawling.dto.ImgNewsResponse
+import com.yourssu.search.crawling.dto.NewsResponse
 import com.yourssu.search.crawling.dto.SearchListResponse
 import com.yourssu.search.crawling.dto.SearchResponse
 import com.yourssu.search.crawling.dto.SearchTopQueriesResponse
+import com.yourssu.search.crawling.dto.TextNewsResponse
 import com.yourssu.search.crawling.dto.request.SaveInformationRequest
 import com.yourssu.search.crawling.repository.AccessLogNativeQueryRepository
 import com.yourssu.search.crawling.repository.InformationCustomRepository
@@ -109,5 +113,15 @@ class SearchService(
             )
         }
         informationRepository.saveAll(informationList)
+    }
+    
+    fun getNews(platformType: PlatformType): NewsResponse {
+        val findImgNewsByDateDesc: List<Information> = customInformationRepository.findImgNewsByDateDesc()
+        val findTextNewsByDateDesc: List<Information> = customInformationRepository.findTextNewsByDateDesc(platformType)
+
+        val imgNewsResponse: List<ImgNewsResponse> = findImgNewsByDateDesc.map { ImgNewsResponse.of(it.imgList[0], it.title, it.date) }
+        val textNewsResponse: List<TextNewsResponse> = findTextNewsByDateDesc.map { TextNewsResponse.of(it.title, it.date) }
+        
+        return NewsResponse(imgNewsResponse, textNewsResponse)
     }
 }
