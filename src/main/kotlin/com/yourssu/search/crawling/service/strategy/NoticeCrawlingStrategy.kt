@@ -19,8 +19,9 @@ class NoticeCrawlingStrategy(
         val urlSelector = ".notice_col3 a"
         val duration = measureTimedValue {
             val allDocuments: List<List<Element>> = crawlingUtils.crawlingList(
-                "https://scatch.ssu.ac.kr/공지사항/page",
-                "ul.notice-lists li:not(.notice_head) "
+                baseUrl = "https://scatch.ssu.ac.kr/공지사항/page/",
+                ulSelector = "ul.notice-lists li:not(.notice_head) ",
+                channelCapacity = 10000
             )
 
             val toSaveDocuments: List<Element> =

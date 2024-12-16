@@ -19,12 +19,17 @@ class FunCrawlingStrategy(
         val urlSelector = "a"
         val duration = measureTimedValue {
             val allDocuments: List<List<Element>> = crawlingUtils.crawlingList(
-                "https://fun.ssu.ac.kr/ko/program/all/list/all",
-                "ul.columns-4 li"
+                baseUrl = "https://fun.ssu.ac.kr/ko/program/all/list/all/",
+                ulSelector = "ul.columns-4 li",
+                channelCapacity = 10000
             )
 
             val toSaveDocuments: List<Element> =
-                crawlingUtils.filteringToSaveDocuments(allDocuments, SourceType.FUN, urlSelector)
+                crawlingUtils.filteringToSaveDocuments(
+                    lists = allDocuments, 
+                    sourceType = SourceType.FUN, 
+                    urlSelector = urlSelector
+                )
 
             crawlingUtils.crawlingContents(
                 toSaveDocuments = toSaveDocuments,
