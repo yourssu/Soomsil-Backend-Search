@@ -10,22 +10,24 @@ data class NewsResponse(
 data class ImgNewsResponse(
     val thumbnail: String,
     val title: String,
-    val date: LocalDate
+    val date: LocalDate,
+    val pageUrl: String 
 ) {
     companion object {
-        fun of(thumbnail: String, title: String, date: LocalDate): ImgNewsResponse {
-            return ImgNewsResponse(thumbnail, title, date)
+        fun of(thumbnail: String, title: String, date: LocalDate, pageUrl: String): ImgNewsResponse {
+            return ImgNewsResponse(thumbnail, title, date, pageUrl)
         }
     }
 }
 
 data class TextNewsResponse(
     val title: String,
-    val date: LocalDate
+    val date: LocalDate,
+    val pageUrl: String,
 ) {
     companion object {
-        fun of(title: String, date: LocalDate): TextNewsResponse {
-            return TextNewsResponse(title, date)
+        fun of(title: String, date: LocalDate, pageUrl: String): TextNewsResponse {
+            return TextNewsResponse(title, date, pageUrl)
         }
     }
 }

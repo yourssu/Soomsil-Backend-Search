@@ -119,8 +119,22 @@ class SearchService(
         val findImgNewsByDateDesc: List<Information> = customInformationRepository.findImgNewsByDateDesc()
         val findTextNewsByDateDesc: List<Information> = customInformationRepository.findTextNewsByDateDesc(platformType)
 
-        val imgNewsResponse: List<ImgNewsResponse> = findImgNewsByDateDesc.map { ImgNewsResponse.of(it.imgList[0], it.title, it.date) }
-        val textNewsResponse: List<TextNewsResponse> = findTextNewsByDateDesc.map { TextNewsResponse.of(it.title, it.date) }
+        val imgNewsResponse: List<ImgNewsResponse> = findImgNewsByDateDesc.map { 
+            ImgNewsResponse.of(
+                it.imgList[0], 
+                it.title, 
+                it.date,
+                it.contentUrl
+            ) 
+        }
+        
+        val textNewsResponse: List<TextNewsResponse> = findTextNewsByDateDesc.map { 
+            TextNewsResponse.of(
+                it.title, 
+                it.date,
+                it.contentUrl
+            ) 
+        }
         
         return NewsResponse(imgNewsResponse, textNewsResponse)
     }
