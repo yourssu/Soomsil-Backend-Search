@@ -10,24 +10,55 @@ data class NewsResponse(
 data class ImgNewsResponse(
     val thumbnail: String,
     val title: String,
-    val date: LocalDate,
+    val date: String,
     val pageUrl: String 
 ) {
     companion object {
         fun of(thumbnail: String, title: String, date: LocalDate, pageUrl: String): ImgNewsResponse {
-            return ImgNewsResponse(thumbnail, title, date, pageUrl)
+            val dateMonthValue = if (date.monthValue < 10) "0${date.monthValue}" else date.monthValue.toString()
+            val dateDayOfMonth = if (date.dayOfMonth < 10) "0${date.dayOfMonth}" else date.dayOfMonth.toString()
+            
+            val dateString = StringBuilder()
+                .append(date.year)
+                .append(".")
+                .append(dateMonthValue)
+                .append(".")
+                .append(dateDayOfMonth)
+                .toString()
+            
+            return ImgNewsResponse(
+                thumbnail = thumbnail, 
+                title = title, 
+                date = dateString,
+                pageUrl = pageUrl
+            )
         }
     }
 }
 
 data class TextNewsResponse(
     val title: String,
-    val date: LocalDate,
+    val date: String,
     val pageUrl: String,
 ) {
     companion object {
         fun of(title: String, date: LocalDate, pageUrl: String): TextNewsResponse {
-            return TextNewsResponse(title, date, pageUrl)
+            val dateMonthValue = if (date.monthValue < 10) "0${date.monthValue}" else date.monthValue.toString()
+            val dateDayOfMonth = if (date.dayOfMonth < 10) "0${date.dayOfMonth}" else date.dayOfMonth.toString()
+            
+            val dateString = StringBuilder()
+                .append(date.year)
+                .append(".")
+                .append(dateMonthValue)
+                .append(".")
+                .append(dateDayOfMonth)
+                .toString()
+            
+            return TextNewsResponse(
+                title = title, 
+                date = dateString,
+                pageUrl = pageUrl
+            )
         }
     }
 }
