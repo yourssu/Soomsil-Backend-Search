@@ -17,10 +17,10 @@ class SSUNewsCrawlingStrategy(
     companion object {
         const val URL_SELECTOR = ".titles a"
         const val BASE_URL = "https://www.ssunews.net"
-        const val UL_SELECTOR = "#section-list > ul > li:nth-child(1)"
+        const val UL_SELECTOR = "#section-list > ul > li"
         const val TITLE_SELECTOR = ".titles a"
         const val CONTENT_SELECTOR = "#article-view-content-div div"
-        const val DATE_SELECTOR = "#section-list > ul > li:nth-child(1) > span"
+        const val DATE_SELECTOR = "#section-list > ul > li > span"
     }
     
     override suspend fun crawl() {
@@ -51,6 +51,7 @@ class SSUNewsCrawlingStrategy(
                 sourceType = SourceType.SSUNEWS,
                 channelCapacity = 100,
                 delayMillis = 10,
+                syncMode = true
             )
         }
         log.info("all time use {}", duration.duration.inWholeSeconds)
