@@ -7,6 +7,7 @@ import com.yourssu.search.crawling.repository.InformationRepository
 import com.yourssu.search.crawling.repository.InformationUrlRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -143,18 +144,130 @@ class CrawlingUtils(
         favicon: String?,
         sourceType: SourceType,
         channelCapacity: Int = 10000,
-        delayMillis: Long = 0L
+        delayMillis: Long = 0L,
+        syncMode: Boolean = false
     ) = coroutineScope {
         val urlChannel = Channel<InformationUrl>(channelCapacity)
 
         // 생산자: 데이터를 크롤링하고 채널에 전송
-        val producerJob = launch {
-            toSaveDocuments.forEach { element ->
+        val producerJob: Job = launch {
+            when (syncMode) {
+                true -> syncCrawlingContents(
+                    toSaveDocuments = toSaveDocuments,
+                    titleSelector = titleSelector,
+                    contentSelector = contentSelector,
+                    urlSelector = urlSelector,
+                    dateSelector = dateSelector,
+                    favicon = favicon,
+                    sourceType = sourceType,
+                    urlChannel = urlChannel,
+                    delayMillis = delayMillis
+                )
+                false -> asyncCrawlingContents(
+                    toSaveDocuments = toSaveDocuments,
+                    titleSelector = titleSelector,
+                    contentSelector = contentSelector,
+                    urlSelector = urlSelector,
+                    dateSelector = dateSelector,
+                    favicon = favicon,
+                    sourceType = sourceType,
+                    urlChannel = urlChannel,
+                    delayMillis = delayMillis
+                )
+            }
+        }
+
+        // 소비자: 채널에서 데이터를 읽고 저장
+        val toSaveUrls = mutableListOf<InformationUrl>()
+        val consumerJob: Job = launch {
+            for (url in urlChannel) {
+                toSaveUrls.add(url)
+            }
+        }
+
+        producerJob.join() // 생산자 작업 완료 대기
+        urlChannel.close() // 생산 완료 후 채널 닫기
+        consumerJob.join() // 소비자 작업 완료 대기
+
+        val distinctUrls = toSaveUrls.distinctBy { it.contentUrl }
+        informationUrlRepository.saveAll(distinctUrls)
+    }
+    
+    suspend fun syncCrawlingContents(
+        toSaveDocuments: List<Element>,
+        titleSelector: String,
+        contentSelector: String,
+        urlSelector: String,
+        dateSelector: String,
+        favicon: String?,
+        sourceType: SourceType,
+        urlChannel: Channel<InformationUrl>,
+        delayMillis: Long
+    ) {
+        toSaveDocuments.forEach { element ->
+            try {
+                val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
+                val title = element.selectFirst(titleSelector)?.text() ?: ""
+                val contentUrl = element.selectFirst(urlSelector)?.attr("abs:href") ?: ""
+
+                log.info("Crawling content: $title")
+
+                delay(delayMillis)
+                val paragraphs = Jsoup.connect(contentUrl).get().select(contentSelector)
+
+                val imgList = paragraphs.select("img").map { img -> img.attr("src") }
+
+                val content = StringBuilder()
+                for (paragraph in paragraphs) {
+                    val trimmedText = paragraph.text().replace("\\s+".toRegex(), " ").trim()
+                    if (trimmedText.isNotEmpty()) {
+                        content.append(trimmedText).append("\n")
+                    }
+                }
+                val extractedDate = dateExtractor.extract(rawDate)
+
+                if (extractedDate == null) {
+                    log.error("날짜 추출 실패 : $rawDate")
+                    return
+                }
+
+                urlChannel.send(InformationUrl(contentUrl = contentUrl, sourceType = sourceType))
+
+                informationRepository.save(
+                    Information(
+                        title = title,
+                        content = content.toString().trim(),
+                        date = extractedDate,
+                        contentUrl = contentUrl,
+                        imgList = imgList,
+                        favicon = favicon,
+                        source = sourceType.value
+                    )
+                )
+            } catch (e: Exception) {
+                log.error("크롤링 중 오류 발생: ${e.message}", e)
+            }
+        }
+    }
+    
+    suspend fun asyncCrawlingContents(
+        toSaveDocuments: List<Element>,
+        titleSelector: String,
+        contentSelector: String,
+        urlSelector: String,
+        dateSelector: String,
+        favicon: String?,
+        sourceType: SourceType,
+        urlChannel: Channel<InformationUrl>,
+        delayMillis: Long
+    ) {
+        val jobs: List<Job> = toSaveDocuments.map { element ->
+            coroutineScope.launch {
                 try {
                     val rawDate = element.selectFirst(dateSelector)?.text() ?: ""
                     val title = element.selectFirst(titleSelector)?.text() ?: ""
                     val contentUrl = element.selectFirst(urlSelector)?.attr("abs:href") ?: ""
-                    
+
                     log.info("Crawling content: $title")
 
                     delay(delayMillis)
@@ -193,21 +306,8 @@ class CrawlingUtils(
                     log.error("크롤링 중 오류 발생: ${e.message}", e)
                 }
             }
-        }
-
-        // 소비자: 채널에서 데이터를 읽고 저장
-        val toSaveUrls = mutableListOf<InformationUrl>()
-        val consumerJob = launch {
-            for (url in urlChannel) {
-                toSaveUrls.add(url)
-            }
-        }
-
-        producerJob.join() // 생산자 작업 완료 대기
-        urlChannel.close() // 생산 완료 후 채널 닫기
-        consumerJob.join() // 소비자 작업 완료 대기
-
-        val distinctUrls = toSaveUrls.distinctBy { it.contentUrl }
-        informationUrlRepository.saveAll(distinctUrls)
+        }.toList()
+        
+        jobs.joinAll()
     }
 }
