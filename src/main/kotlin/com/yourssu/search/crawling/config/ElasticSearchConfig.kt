@@ -20,6 +20,8 @@ class ElasticSearchConfig(
         return ClientConfiguration.builder()
             .connectedTo(endpoint)
             .withBasicAuth(user, password)
+            .withConnectTimeout(10000)
+            .withSocketTimeout(30000)
             .build()
     }
 }
