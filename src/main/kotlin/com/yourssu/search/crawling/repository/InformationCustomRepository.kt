@@ -2,8 +2,15 @@ package com.yourssu.search.crawling.repository
 
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
-import co.elastic.clients.elasticsearch._types.query_dsl.*
-import co.elastic.clients.elasticsearch._types.query_dsl.FieldValueFactorModifier.Log1p
+import co.elastic.clients.elasticsearch._types.query_dsl.FieldValueFactorModifier
+import co.elastic.clients.elasticsearch._types.query_dsl.FieldValueFactorScoreFunction
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionBoostMode
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionScore
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionScoreMode
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionScoreQuery
+import co.elastic.clients.elasticsearch._types.query_dsl.MultiMatchQuery
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
 import com.yourssu.search.crawling.domain.Information
 import com.yourssu.search.crawling.domain.PlatformType
 import com.yourssu.search.crawling.domain.SourceType
@@ -28,9 +35,9 @@ class InformationCustomRepository(
 
         val fieldValueFactor = FieldValueFactorScoreFunction.Builder()
             .field("date")
-            .factor(0.5)
-            .missing(0.0)
-            .modifier(Log1p)
+            .factor(1.0)
+            .missing(1.0)
+            .modifier(FieldValueFactorModifier.None)
             .build()
 
         val functionScore = FunctionScore.Builder()
@@ -40,7 +47,7 @@ class InformationCustomRepository(
         val functionScoreQuery = FunctionScoreQuery.Builder()
             .query(multiMatch._toQuery())
             .functions(listOf(functionScore))
-            .boostMode(FunctionBoostMode.Sum)
+            .boostMode(FunctionBoostMode.Multiply)
             .scoreMode(FunctionScoreMode.Sum)
             .build()
 
