@@ -13,6 +13,7 @@ import com.yourssu.search.crawling.repository.AccessLogNativeQueryRepository
 import com.yourssu.search.crawling.repository.InformationCustomRepository
 import com.yourssu.search.crawling.repository.InformationRepository
 import com.yourssu.search.global.exception.ElasticConnectionException
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import java.time.LocalDate
@@ -27,8 +28,15 @@ class SearchService(
         query: String,
         pageable: Pageable
     ): SearchListResponse {
-        val result = customInformationRepository.search(query, pageable)
-        val informations = result.map { SearchResponse.of(it) }.toList()
+        val result: Page<Information> = customInformationRepository.search(query, pageable)
+        
+        val sortedResult: List<Information> = result
+            .toList()
+            .sortedByDescending { it.date }
+            .toList()
+        
+        val informations: List<SearchResponse> = sortedResult.map { SearchResponse.of(it) }.toList()
+        
         return SearchListResponse(
             totalCount = result.totalElements,
             resultCount = informations.size,
